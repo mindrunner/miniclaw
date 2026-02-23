@@ -31,7 +31,6 @@ func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput) (models.
 	args := []string{
 		"--print",
 		"--output-format", "json",
-		"--max-turns", "10",
 		"--dangerously-skip-permissions",
 	}
 
