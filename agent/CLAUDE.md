@@ -32,7 +32,7 @@ To create a task, write a JSON file to ~/.miniclaw/data/tasks/ with a descriptiv
 
 ```json
 {
-    "prompt": "Check emails and summarize",
+    "prompt": "Check emails and summarise",
     "chat_id": -1001234567890,
     "type": "cron",
     "value": "0 9 * * *",

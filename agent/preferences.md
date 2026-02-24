@@ -13,4 +13,4 @@
 
 ## User Preferences
 
-(none yet — the user will tell you what to remember)
+- Use British English spelling (e.g. summarise, colour, behaviour, personalise)

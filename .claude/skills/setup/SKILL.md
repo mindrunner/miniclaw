@@ -36,9 +36,9 @@ mkdir -p ~/.miniclaw/{data/tasks,workspace}
 
 Report that the runtime directory structure has been created.
 
-## Step 5: Personalize agent
+## Step 5: Personalise agent
 
-Read `agent/preferences.md` and walk the user through customizing it:
+Read `agent/preferences.md` and walk the user through customising it:
 
 1. **Name** — Ask what they want to name their bot (default: Enki)
 2. **Timezone** — Ask for their timezone in UTC offset format (default: UTC+8)

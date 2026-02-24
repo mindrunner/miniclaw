@@ -57,7 +57,7 @@ func (a *App) Start(ctx context.Context) error {
 
 func (a *App) onMessage(msg models.Message) {
 	if !a.isAllowed(msg.ChatID) {
-		log.Printf("message from unauthorized chat %d, ignoring", msg.ChatID)
+		log.Printf("message from unauthorised chat %d, ignoring", msg.ChatID)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 		return
 	}
 
-	// Finalize status message if tools were used
+	// Finalise status message if tools were used
 	if statusMsgID != 0 {
 		a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderFinal())
 	}
