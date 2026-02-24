@@ -14,7 +14,7 @@ type App struct {
 	bot          *TelegramBot
 	agentRunner  *AgentRunner
 	scheduler    *Scheduler
-	activeAgents sync.Map // map[int64]struct{} — chatID → running flag
+	activeAgents sync.Map // map[int64]context.CancelFunc — chatID → cancel func
 }
 
 func NewApp(cfg Config) *App {
@@ -32,6 +32,7 @@ func NewApp(cfg Config) *App {
 		log.Fatalf("failed to create telegram bot: %v", err)
 	}
 	a.bot = bot
+	a.bot.onCancel = a.cancelAgent
 
 	a.scheduler = NewScheduler(cfg, a.agentRunner, a.bot)
 
@@ -60,34 +61,36 @@ func (a *App) onMessage(msg models.Message) {
 		return
 	}
 
-	if _, loaded := a.activeAgents.LoadOrStore(msg.ChatID, struct{}{}); loaded {
+	ctx, cancel := context.WithCancel(context.Background())
+	if _, loaded := a.activeAgents.LoadOrStore(msg.ChatID, cancel); loaded {
+		cancel()
 		log.Printf("agent already running for chat %d, ignoring message", msg.ChatID)
 		return
 	}
 
 	input := models.AgentInput{
 		ChatID:         msg.ChatID,
+		MessageID:      msg.MessageID,
 		Prompt:         msg.Content,
 		ReplyToSender:  msg.ReplyToSender,
 		ReplyToContent: msg.ReplyToContent,
 	}
 
-	go a.startAgent(input)
+	go a.startAgent(ctx, cancel, input)
 }
 
-func (a *App) startAgent(input models.AgentInput) {
+func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input models.AgentInput) {
 	defer a.activeAgents.Delete(input.ChatID)
+	defer cancel()
 
 	// Send typing indicator every 4s until the agent finishes
-	typingCtx, stopTyping := context.WithCancel(context.Background())
-	defer stopTyping()
 	go func() {
 		a.bot.SendTyping(input.ChatID)
 		ticker := time.NewTicker(4 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-typingCtx.Done():
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				a.bot.SendTyping(input.ChatID)
@@ -95,8 +98,13 @@ func (a *App) startAgent(input models.AgentInput) {
 		}
 	}()
 
-	output, err := a.agentRunner.Run(context.Background(), input)
+	output, err := a.agentRunner.Run(ctx, input)
 	if err != nil {
+		if ctx.Err() == context.Canceled {
+			log.Printf("agent cancelled for chat %d", input.ChatID)
+			a.bot.SendReply(input.ChatID, input.MessageID, "Cancelled.")
+			return
+		}
 		log.Printf("agent error for chat %d: %v", input.ChatID, err)
 		a.bot.SendMessage(input.ChatID, "Sorry, I encountered an error. Check logs for details.")
 		return
@@ -106,6 +114,17 @@ func (a *App) startAgent(input models.AgentInput) {
 		if err := a.bot.SendMessage(input.ChatID, output.Result); err != nil {
 			log.Printf("error sending message to chat %d: %v", input.ChatID, err)
 		}
+	}
+}
+
+func (a *App) cancelAgent(chatID int64) {
+	val, loaded := a.activeAgents.Load(chatID)
+	if !loaded {
+		a.bot.SendMessage(chatID, "Nothing to cancel.")
+		return
+	}
+	if cancel, ok := val.(context.CancelFunc); ok {
+		cancel()
 	}
 }
 

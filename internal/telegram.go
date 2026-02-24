@@ -18,6 +18,7 @@ type TelegramBot struct {
 	bot       *gotgbot.Bot
 	updater   *ext.Updater
 	onMessage func(msg models.Message)
+	onCancel  func(chatID int64)
 }
 
 func NewTelegramBot(token string, onMessage func(msg models.Message)) (*TelegramBot, error) {
@@ -38,8 +39,9 @@ func NewTelegramBot(token string, onMessage func(msg models.Message)) (*Telegram
 		},
 	})
 
-	// Handle /chatid command
+	// Handle commands
 	dispatcher.AddHandler(handlers.NewCommand("chatid", tb.handleChatID))
+	dispatcher.AddHandler(handlers.NewCommand("cancel", tb.handleCancel))
 
 	// Handle all text messages
 	dispatcher.AddHandler(handlers.NewMessage(nil, tb.handleMessage))
@@ -60,10 +62,19 @@ func (tb *TelegramBot) Stop() {
 }
 
 func (tb *TelegramBot) handleChatID(b *gotgbot.Bot, ctx *ext.Context) error {
+	log.Printf("[recv] chat=%d command=/chatid", ctx.EffectiveChat.Id)
 	_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("Chat ID: <code>%d</code>", ctx.EffectiveChat.Id), &gotgbot.SendMessageOpts{
 		ParseMode: "HTML",
 	})
 	return err
+}
+
+func (tb *TelegramBot) handleCancel(_ *gotgbot.Bot, ctx *ext.Context) error {
+	log.Printf("[recv] chat=%d command=/cancel", ctx.EffectiveChat.Id)
+	if tb.onCancel != nil {
+		tb.onCancel(ctx.EffectiveChat.Id)
+	}
+	return nil
 }
 
 func (tb *TelegramBot) handleMessage(_ *gotgbot.Bot, ctx *ext.Context) error {
@@ -78,9 +89,10 @@ func (tb *TelegramBot) handleMessage(_ *gotgbot.Bot, ctx *ext.Context) error {
 
 func (tb *TelegramBot) parseMessage(msg *gotgbot.Message) models.Message {
 	m := models.Message{
-		ChatID:  msg.Chat.Id,
-		Sender:  senderName(msg.From),
-		Content: msg.Text,
+		ChatID:    msg.Chat.Id,
+		MessageID: msg.MessageId,
+		Sender:    senderName(msg.From),
+		Content:   msg.Text,
 	}
 
 	if msg.ReplyToMessage != nil {
@@ -93,6 +105,16 @@ func (tb *TelegramBot) parseMessage(msg *gotgbot.Message) models.Message {
 
 func (tb *TelegramBot) SendTyping(chatID int64) {
 	tb.bot.SendChatAction(chatID, "typing", nil)
+}
+
+func (tb *TelegramBot) SendReply(chatID int64, replyToMessageID int64, text string) error {
+	if text == "" {
+		return nil
+	}
+	_, err := tb.bot.SendMessage(chatID, text, &gotgbot.SendMessageOpts{
+		ReplyParameters: &gotgbot.ReplyParameters{MessageId: replyToMessageID},
+	})
+	return err
 }
 
 func (tb *TelegramBot) SendMessage(chatID int64, text string) error {

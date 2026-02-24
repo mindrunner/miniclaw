@@ -4,6 +4,7 @@ package models
 // Not persisted — used only for allowlist check and agent dispatch.
 type Message struct {
 	ChatID         int64
+	MessageID      int64
 	Sender         string
 	Content        string
 	ReplyToSender  string
