@@ -183,6 +183,18 @@ func toolLabel(name string, input map[string]interface{}) string {
 		if d := getString("description"); d != "" {
 			return html.EscapeString(d)
 		}
+	case "TodoWrite":
+		if todos, ok := input["todos"].([]interface{}); ok {
+			for _, t := range todos {
+				if todo, ok := t.(map[string]interface{}); ok {
+					if todo["status"] == "in_progress" {
+						if c, ok := todo["content"].(string); ok {
+							return html.EscapeString(c)
+						}
+					}
+				}
+			}
+		}
 	}
 	return ""
 }
