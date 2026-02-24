@@ -33,6 +33,7 @@ func NewApp(cfg Config) *App {
 	}
 	a.bot = bot
 	a.bot.onCancel = a.cancelAgent
+	a.bot.onRestart = a.restartAgent
 
 	a.scheduler = NewScheduler(cfg, a.agentRunner, a.bot)
 
@@ -168,6 +169,35 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 			log.Printf("error sending message to chat %d: %v", input.ChatID, err)
 		}
 	}
+}
+
+func (a *App) restartAgent(chatID int64) {
+	if !a.isAllowed(chatID) {
+		log.Printf("restart from unauthorised chat %d, ignoring", chatID)
+		return
+	}
+
+	// Cancel any active agent for this chat
+	if val, loaded := a.activeAgents.Load(chatID); loaded {
+		if cancel, ok := val.(context.CancelFunc); ok {
+			cancel()
+		}
+	}
+
+	a.bot.SendMessage(chatID, "Restarting miniclaw...")
+
+	input := models.AgentInput{
+		ChatID: chatID,
+		Prompt: "/restart",
+	}
+
+	go func() {
+		ctx := context.Background()
+		_, err := a.agentRunner.Run(ctx, input, nil)
+		if err != nil {
+			log.Printf("restart agent error for chat %d: %v", chatID, err)
+		}
+	}()
 }
 
 func (a *App) cancelAgent(chatID int64) {

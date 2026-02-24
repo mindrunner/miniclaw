@@ -19,6 +19,7 @@ type TelegramBot struct {
 	updater   *ext.Updater
 	onMessage func(msg models.Message)
 	onCancel  func(chatID int64)
+	onRestart func(chatID int64)
 }
 
 func NewTelegramBot(token string, onMessage func(msg models.Message)) (*TelegramBot, error) {
@@ -42,6 +43,7 @@ func NewTelegramBot(token string, onMessage func(msg models.Message)) (*Telegram
 	// Handle commands
 	dispatcher.AddHandler(handlers.NewCommand("chatid", tb.handleChatID))
 	dispatcher.AddHandler(handlers.NewCommand("cancel", tb.handleCancel))
+	dispatcher.AddHandler(handlers.NewCommand("restart", tb.handleRestart))
 
 	// Handle all text messages
 	dispatcher.AddHandler(handlers.NewMessage(nil, tb.handleMessage))
@@ -73,6 +75,14 @@ func (tb *TelegramBot) handleCancel(_ *gotgbot.Bot, ctx *ext.Context) error {
 	log.Printf("[recv] chat=%d command=/cancel", ctx.EffectiveChat.Id)
 	if tb.onCancel != nil {
 		tb.onCancel(ctx.EffectiveChat.Id)
+	}
+	return nil
+}
+
+func (tb *TelegramBot) handleRestart(_ *gotgbot.Bot, ctx *ext.Context) error {
+	log.Printf("[recv] chat=%d command=/restart", ctx.EffectiveChat.Id)
+	if tb.onRestart != nil {
+		tb.onRestart(ctx.EffectiveChat.Id)
 	}
 	return nil
 }
