@@ -21,15 +21,15 @@ type Config struct {
 	SchedulerInterval time.Duration
 }
 
-// HomeDir resolves ~/.goclaw/ and creates it (and data/, data/tasks/, workspace/ subdirectories) if they don't exist.
-// Also loads ~/.goclaw/.env early so env vars are available to subsequent init functions.
+// HomeDir resolves ~/.miniclaw/ and creates it (and data/, data/tasks/, workspace/ subdirectories) if they don't exist.
+// Also loads ~/.miniclaw/.env early so env vars are available to subsequent init functions.
 func HomeDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("cannot resolve home directory: %v", err)
 	}
 
-	dir := filepath.Join(home, ".goclaw")
+	dir := filepath.Join(home, ".miniclaw")
 	for _, sub := range []string{"", "data", "data/tasks", "workspace"} {
 		p := filepath.Join(dir, sub)
 		if err := os.MkdirAll(p, 0755); err != nil {
@@ -37,17 +37,17 @@ func HomeDir() string {
 		}
 	}
 
-	// Load .env early so GOCLAW_AGENT_DIR (and other vars) are available before LoadConfig.
+	// Load .env early so MINICLAW_AGENT_DIR (and other vars) are available before LoadConfig.
 	_ = godotenv.Load(filepath.Join(dir, ".env"))
 
 	return dir
 }
 
-// AgentDir resolves the agent directory. Uses GOCLAW_AGENT_DIR env var if set,
+// AgentDir resolves the agent directory. Uses MINICLAW_AGENT_DIR env var if set,
 // otherwise falls back to ./agent/ relative to CWD.
 // Seeds preferences.md with default template if it doesn't exist.
 func AgentDir() string {
-	dir := os.Getenv("GOCLAW_AGENT_DIR")
+	dir := os.Getenv("MINICLAW_AGENT_DIR")
 	if dir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -58,7 +58,7 @@ func AgentDir() string {
 
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
-		log.Fatalf("agent directory not found at %s — set GOCLAW_AGENT_DIR or run from the repo root", dir)
+		log.Fatalf("agent directory not found at %s — set MINICLAW_AGENT_DIR or run from the repo root", dir)
 	}
 
 	prefsPath := filepath.Join(dir, "preferences.md")

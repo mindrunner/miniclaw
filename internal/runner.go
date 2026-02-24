@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"goclaw/internal/models"
+	"miniclaw/internal/models"
 )
 
 type AgentRunner struct {
@@ -65,7 +65,7 @@ func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput, onToolUs
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Dir = r.config.AgentDir
 	cmd.Stdin = strings.NewReader(prompt)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("GOCLAW_CHAT_ID=%d", input.ChatID))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("MINICLAW_CHAT_ID=%d", input.ChatID))
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

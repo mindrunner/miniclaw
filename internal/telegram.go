@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"goclaw/internal/models"
+	"miniclaw/internal/models"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"

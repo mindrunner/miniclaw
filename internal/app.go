@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"goclaw/internal/models"
+	"miniclaw/internal/models"
 )
 
 type App struct {

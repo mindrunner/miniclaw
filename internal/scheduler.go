@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"goclaw/internal/models"
+	"miniclaw/internal/models"
 
 	"github.com/robfig/cron/v3"
 )

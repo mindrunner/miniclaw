@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"goclaw/internal"
+	"miniclaw/internal"
 )
 
 func main() {

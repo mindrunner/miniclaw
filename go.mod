@@ -1,4 +1,4 @@
-module goclaw
+module miniclaw
 
 go 1.25.5
 
