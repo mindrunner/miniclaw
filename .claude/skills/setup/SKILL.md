@@ -2,7 +2,7 @@
 name: setup
 description: Interactive setup wizard for new Goclaw users who just forked the repo
 disable-model-invocation: true
-allowed-tools: "Read, Bash(go *), Bash(which *), Bash(claude *), Bash(mkdir *), Bash(ls *), Bash(systemctl *), Bash(loginctl *)"
+allowed-tools: "Read, Edit, Bash(go *), Bash(which *), Bash(claude *), Bash(mkdir *), Bash(ls *), Bash(systemctl *), Bash(loginctl *)"
 ---
 
 # Goclaw Setup Wizard
@@ -36,7 +36,16 @@ mkdir -p ~/.goclaw/{data/tasks,workspace}
 
 Report that the runtime directory structure has been created.
 
-## Step 5: Telegram bot token
+## Step 5: Personalize agent
+
+Read `agent/preferences.md` and walk the user through customizing it:
+
+1. **Name** — Ask what they want to name their bot (default: Enki)
+2. **Timezone** — Ask for their timezone in UTC offset format (default: UTC+8)
+
+Update `agent/preferences.md` with their choices using the Edit tool. If they're happy with a default, skip that field.
+
+## Step 6: Telegram bot token
 
 Ask the user for their Telegram bot token. Tell them:
 
@@ -44,13 +53,13 @@ Ask the user for their Telegram bot token. Tell them:
 - Use the `/newbot` command and follow the prompts
 - Copy the token BotFather gives you
 
-Once they provide the token, hold onto it for Step 7.
+Once they provide the token, hold onto it for Step 9.
 
-## Step 6: Agent directory
+## Step 7: Agent directory
 
-Determine the absolute path to the `agent/` directory in the current repo by running `ls` on it. Hold onto this path for Step 7 as the `GOCLAW_AGENT_DIR` value. This tells the bot where to find its CLAUDE.md and preferences.md files, so it can be run from any directory.
+Determine the absolute path to the `agent/` directory in the current repo by running `ls` on it. Hold onto this path for Step 9 as the `GOCLAW_AGENT_DIR` value. This tells the bot where to find its CLAUDE.md and preferences.md files, so it can be run from any directory.
 
-## Step 7: Allowed chat IDs
+## Step 8: Allowed chat IDs
 
 Ask the user for their allowed Telegram chat IDs (comma-separated). Tell them:
 
@@ -59,23 +68,23 @@ Ask the user for their allowed Telegram chat IDs (comma-separated). Tell them:
 - Group chats have negative IDs (e.g. `-1001234567890`)
 - Private chats have positive IDs
 
-Hold onto the value for Step 8.
+Hold onto the value for Step 9.
 
-## Step 8: Write .env file
+## Step 9: Write .env file
 
 Write `~/.goclaw/.env` with the collected values:
 
 ```
 TELEGRAM_BOT_TOKEN=<their token>
 ALLOWED_CHAT_IDS=<their chat IDs, or empty>
-GOCLAW_AGENT_DIR=<absolute path to agent/ from Step 6>
+GOCLAW_AGENT_DIR=<absolute path to agent/ from Step 7>
 ```
 
 Use the Bash tool to write this file with `0600` permissions. Do NOT use the Write tool (the path is outside the project).
 
-## Step 9: Systemd service (optional)
+## Step 10: Systemd service (optional)
 
-Ask the user if they want to run Goclaw as a systemd user service so it starts automatically and runs in the background. If they decline, skip to Step 10.
+Ask the user if they want to run Goclaw as a systemd user service so it starts automatically and runs in the background. If they decline, skip to Step 11.
 
 If they accept:
 
@@ -105,7 +114,7 @@ WantedBy=default.target
 6. Enable lingering so it runs even when the user is not logged in: `loginctl enable-linger`
 7. Ask if they want to start it now. If yes: `systemctl --user start goclaw` and confirm it's running with `systemctl --user status goclaw`.
 
-## Step 10: Done
+## Step 11: Done
 
 Print a summary:
 
@@ -150,4 +159,4 @@ If they left ALLOWED_CHAT_IDS empty, remind them to:
 - Be concise and friendly
 - Do NOT proceed past a failed step — fix it first
 - Do NOT print raw commands unless the user asks to see them
-- Do NOT modify any repo files — only create `~/.goclaw/.env`
+- Do NOT modify any repo files except `agent/preferences.md` — only create `~/.goclaw/.env` and edit preferences
