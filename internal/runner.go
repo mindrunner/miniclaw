@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -25,12 +26,31 @@ func NewAgentRunner(cfg Config, sessions *SessionStore) *AgentRunner {
 	}
 }
 
-func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput) (models.AgentOutput, error) {
+// stream-json parse structs
+type streamEvent struct {
+	Type      string         `json:"type"`
+	Subtype   string         `json:"subtype"`
+	SessionID string         `json:"session_id"`
+	Result    string         `json:"result"`
+	Message   *streamMessage `json:"message"`
+}
+
+type streamMessage struct {
+	Content []streamContent `json:"content"`
+}
+
+type streamContent struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput, onToolUse func(toolName string)) (models.AgentOutput, error) {
 	prompt := r.buildPrompt(input)
 
 	args := []string{
 		"--print",
-		"--output-format", "json",
+		"--verbose", // required by Claude CLI when using stream-json with --print
+		"--output-format", "stream-json",
 		"--dangerously-skip-permissions",
 	}
 
@@ -47,32 +67,74 @@ func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput) (models.
 	cmd.Stdin = strings.NewReader(prompt)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("GOCLAW_CHAT_ID=%d", input.ChatID))
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return models.AgentOutput{Status: "error", Error: "failed to create stdout pipe"}, err
+	}
+
+	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
+		log.Printf("[agent] chat=%d CLI start error: %v", input.ChatID, err)
+		return models.AgentOutput{Status: "error", Error: "failed to start CLI"}, err
+	}
+
+	var result string
+	var resultSessionID string
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024) // 1MB max line buffer
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var event streamEvent
+		if err := json.Unmarshal(line, &event); err != nil {
+			log.Printf("[agent] chat=%d failed to parse stream line: %v", input.ChatID, err)
+			continue
+		}
+
+		switch event.Type {
+		case "system":
+			if event.Subtype == "init" && event.SessionID != "" {
+				resultSessionID = event.SessionID
+			}
+
+		case "assistant":
+			if onToolUse != nil && event.Message != nil {
+				for _, block := range event.Message.Content {
+					if block.Type == "tool_use" && block.Name != "" {
+						onToolUse(block.Name)
+					}
+				}
+			}
+
+		case "result":
+			if event.Subtype == "success" {
+				result = event.Result
+			}
+			if event.SessionID != "" {
+				resultSessionID = event.SessionID
+			}
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
 		log.Printf("[agent] chat=%d CLI error: %v stderr=%q", input.ChatID, err, stderr.String())
 		return models.AgentOutput{Status: "error", Error: stderr.String()}, err
 	}
 
-	var cliResponse struct {
-		Result    string `json:"result"`
-		SessionID string `json:"session_id"`
-	}
-	if err := json.Unmarshal(stdout.Bytes(), &cliResponse); err != nil {
-		log.Printf("[agent] chat=%d failed to parse CLI JSON: %v", input.ChatID, err)
-		return models.AgentOutput{Status: "error", Error: "failed to parse CLI output: " + stdout.String()}, err
+	if resultSessionID != "" {
+		r.sessions.Set(input.ChatID, resultSessionID)
 	}
 
-	if cliResponse.SessionID != "" {
-		r.sessions.Set(input.ChatID, cliResponse.SessionID)
-	}
-
-	log.Printf("[agent] chat=%d completed session=%s result_len=%d", input.ChatID, cliResponse.SessionID, len(cliResponse.Result))
+	log.Printf("[agent] chat=%d completed session=%s result_len=%d", input.ChatID, resultSessionID, len(result))
 	return models.AgentOutput{
-		Result: cliResponse.Result,
+		Result: result,
 		Status: "success",
 	}, nil
 }

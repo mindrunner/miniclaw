@@ -98,16 +98,69 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 		}
 	}()
 
-	output, err := a.agentRunner.Run(ctx, input)
+	tracker := newStatusTracker()
+	var statusMsgID int64
+
+	// Debounce timer to avoid rapid edits hitting Telegram rate limits
+	var mu sync.Mutex
+	var debounceTimer *time.Timer
+
+	onToolUse := func(toolName string) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		first := tracker.Add(toolName)
+
+		if first {
+			statusMsgID = a.bot.SendStatusMessage(input.ChatID, tracker.Render())
+			return
+		}
+
+		if statusMsgID == 0 {
+			return
+		}
+
+		// Debounce subsequent edits to ~800ms
+		if debounceTimer != nil {
+			debounceTimer.Stop()
+		}
+		debounceTimer = time.AfterFunc(800*time.Millisecond, func() {
+			mu.Lock()
+			text := tracker.Render()
+			mu.Unlock()
+			a.bot.EditMessage(input.ChatID, statusMsgID, text)
+		})
+	}
+
+	output, err := a.agentRunner.Run(ctx, input, onToolUse)
+
+	// Stop any pending debounce timer
+	mu.Lock()
+	if debounceTimer != nil {
+		debounceTimer.Stop()
+	}
+	mu.Unlock()
+
 	if err != nil {
 		if ctx.Err() == context.Canceled {
 			log.Printf("agent cancelled for chat %d", input.ChatID)
+			if statusMsgID != 0 {
+				a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderDone()+"❌ Cancelled")
+			}
 			a.bot.SendReply(input.ChatID, input.MessageID, "Cancelled.")
 			return
 		}
 		log.Printf("agent error for chat %d: %v", input.ChatID, err)
+		if statusMsgID != 0 {
+			a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderDone()+"❌ Error")
+		}
 		a.bot.SendMessage(input.ChatID, "Sorry, I encountered an error. Check logs for details.")
 		return
+	}
+
+	// Finalize status message if tools were used
+	if statusMsgID != 0 {
+		a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderFinal())
 	}
 
 	if output.Result != "" {

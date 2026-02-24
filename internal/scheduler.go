@@ -70,7 +70,7 @@ func (s *Scheduler) executeDueTasks(ctx context.Context) {
 		output, err := s.agentRunner.Run(ctx, models.AgentInput{
 			ChatID: task.ChatID,
 			Prompt: task.Prompt,
-		})
+		}, nil)
 
 		if err == nil && output.Result != "" {
 			s.bot.SendMessage(task.ChatID, output.Result)

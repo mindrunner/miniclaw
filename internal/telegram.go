@@ -107,6 +107,29 @@ func (tb *TelegramBot) SendTyping(chatID int64) {
 	tb.bot.SendChatAction(chatID, "typing", nil)
 }
 
+// SendStatusMessage sends a plain text message and returns its message ID.
+// Returns 0 on error (best-effort).
+func (tb *TelegramBot) SendStatusMessage(chatID int64, text string) int64 {
+	msg, err := tb.bot.SendMessage(chatID, text, nil)
+	if err != nil {
+		log.Printf("[send] chat=%d failed to send status message: %v", chatID, err)
+		return 0
+	}
+	return msg.MessageId
+}
+
+// EditMessage edits a previously sent message in-place.
+// Best-effort: logs errors but doesn't return them.
+func (tb *TelegramBot) EditMessage(chatID, messageID int64, text string) {
+	_, _, err := tb.bot.EditMessageText(text, &gotgbot.EditMessageTextOpts{
+		ChatId:    chatID,
+		MessageId: messageID,
+	})
+	if err != nil {
+		log.Printf("[send] chat=%d msg=%d failed to edit status message: %v", chatID, messageID, err)
+	}
+}
+
 func (tb *TelegramBot) SendReply(chatID int64, replyToMessageID int64, text string) error {
 	if text == "" {
 		return nil
