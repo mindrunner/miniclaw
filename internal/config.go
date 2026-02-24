@@ -115,6 +115,6 @@ func LoadConfig(homeDir string, agentDir string) Config {
 		WorkspaceDir:      filepath.Join(homeDir, "workspace"),
 		TelegramToken:     token,
 		AllowedChatIDs:    allowedIDs,
-		SchedulerInterval: time.Minute,
+		SchedulerInterval: 10 * time.Second,
 	}
 }
