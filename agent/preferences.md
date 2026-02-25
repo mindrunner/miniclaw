@@ -9,6 +9,7 @@
 
 - Timezone: UTC+8
 - Confirm before file changes: yes, except trivial 1-2 line changes where intent is obvious
+- Always respond to local command outputs with a brief confirmation
 - Bullet point style: •
 
 ## User Preferences
