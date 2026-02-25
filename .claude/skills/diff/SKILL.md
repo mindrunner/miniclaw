@@ -1,0 +1,39 @@
+---
+name: diff
+description: Review git diff and suggest how to group and commit changes
+allowed-tools: "Bash(git *)"
+---
+
+# Git Diff Review
+
+Review the current git diff in the miniclaw repo, summarise what has changed, and suggest how to group the changes into commits.
+
+## Step 1: Announce repo
+
+Start your response by stating the absolute path of the git repo root (run `git rev-parse --show-toplevel`).
+
+## Step 2: Gather state
+
+Run these commands from the repo root:
+
+1. `git status` — to see all modified, staged, and untracked files
+2. `git diff` — to see unstaged changes
+3. `git diff --staged` — to see any already-staged changes
+4. `git log --oneline -5` — to see recent commit style
+
+## Step 3: Analyse and report
+
+For each changed file, briefly describe what changed and why.
+
+## Step 4: Suggest commits
+
+Group related changes into logical commits. For each suggested commit:
+
+- List the files to include
+- Suggest a commit message following the repo's conventional commit style (e.g. `feat:`, `fix:`, `chore:`, `docs:`, `style:`)
+
+If the working tree is clean, just say so.
+
+## Step 5: Ask to proceed
+
+Ask the user if they want you to commit and push, or if they want to adjust the grouping.
