@@ -3,14 +3,14 @@ package internal
 import "strings"
 
 var toolEmoji = map[string]string{
-	"Read":      "📄",
-	"Edit":      "✏️",
-	"Write":     "✏️",
-	"Bash":      "⚡",
-	"Grep":      "🔎",
-	"Glob":      "🔎",
-	"WebSearch": "🌐",
-	"WebFetch":  "🌐",
+	"Read":          "📄",
+	"Edit":          "✏️",
+	"Write":         "✏️",
+	"Bash":          "⚡",
+	"Grep":          "🔎",
+	"Glob":          "🔎",
+	"WebSearch":     "🌐",
+	"WebFetch":      "🌐",
 	"Task":          "🤖",
 	"EnterPlanMode": "📝",
 	"TodoWrite":     "🏗️",
@@ -29,8 +29,6 @@ func newStatusTracker() *statusTracker {
 	return &statusTracker{}
 }
 
-// Add appends a tool action and returns true if this is the first entry.
-// Returns false without adding if the tool should be hidden.
 func (s *statusTracker) Add(toolName, label string) bool {
 	if toolName == "ExitPlanMode" || (toolName == "TodoWrite" && label == "") {
 		return len(s.entries) == 0
@@ -43,7 +41,6 @@ func (s *statusTracker) Add(toolName, label string) bool {
 		label = toolName
 	}
 
-	// Skip consecutive duplicates
 	if n := len(s.entries); n > 0 && s.entries[n-1].emoji == emoji && s.entries[n-1].label == label {
 		return false
 	}
@@ -59,16 +56,16 @@ func (s *statusTracker) Render() string {
 		return ""
 	}
 
-	var text string
+	var b strings.Builder
 	for i, e := range s.entries {
-		text += e.emoji + " " + e.label
+		b.WriteString(e.emoji + " " + e.label)
 		if i < len(s.entries)-1 {
-			text += "\n"
+			b.WriteString("\n")
 		} else {
-			text += " 🟡"
+			b.WriteString(" 🟡")
 		}
 	}
-	return text
+	return b.String()
 }
 
 // RenderDone returns all entries as completed. Used as a base for final/cancel/error states.
@@ -77,14 +74,13 @@ func (s *statusTracker) RenderDone() string {
 		return ""
 	}
 
-	var text string
+	var b strings.Builder
 	for _, e := range s.entries {
-		text += e.emoji + " " + e.label + "\n"
+		b.WriteString(e.emoji + " " + e.label + "\n")
 	}
-	return text
+	return b.String()
 }
 
-// RenderFinal returns all entries marked as complete.
 func (s *statusTracker) RenderFinal() string {
 	return strings.TrimRight(s.RenderDone(), "\n")
 }

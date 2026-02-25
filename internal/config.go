@@ -21,8 +21,7 @@ type Config struct {
 	SchedulerInterval time.Duration
 }
 
-// HomeDir resolves ~/.miniclaw/ and creates it (and data/, data/tasks/, workspace/ subdirectories) if they don't exist.
-// Also loads ~/.miniclaw/.env early so env vars are available to subsequent init functions.
+// HomeDir resolves ~/.miniclaw/, creating subdirectories as needed.
 func HomeDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -43,9 +42,7 @@ func HomeDir() string {
 	return dir
 }
 
-// AgentDir resolves the agent directory. Uses MINICLAW_AGENT_DIR env var if set,
-// otherwise falls back to ./agent/ relative to CWD.
-// Seeds preferences.md with default template if it doesn't exist.
+// AgentDir resolves the agent directory from MINICLAW_AGENT_DIR or CWD.
 func AgentDir() string {
 	dir := os.Getenv("MINICLAW_AGENT_DIR")
 	if dir == "" {
@@ -61,32 +58,10 @@ func AgentDir() string {
 		log.Fatalf("agent directory not found at %s — set MINICLAW_AGENT_DIR or run from the repo root", dir)
 	}
 
-	prefsPath := filepath.Join(dir, "preferences.md")
-	if _, err := os.Stat(prefsPath); os.IsNotExist(err) {
-		defaultPrefs := `# Preferences
-
-## Identity
-
-- Name: Assistant
-- Personality: Helpful, concise, friendly
-
-## Settings
-
-- Timezone: UTC
-
-## User Preferences
-
-(none yet — the user will tell you what to remember)
-`
-		if err := os.WriteFile(prefsPath, []byte(defaultPrefs), 0644); err != nil {
-			log.Fatalf("cannot seed preferences.md: %v", err)
-		}
-	}
-
 	return dir
 }
 
-// LoadConfig loads config from env vars (already loaded via HomeDir).
+// LoadConfig reads config from environment variables.
 func LoadConfig(homeDir string, agentDir string) Config {
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
@@ -95,7 +70,7 @@ func LoadConfig(homeDir string, agentDir string) Config {
 
 	var allowedIDs []int64
 	if raw := os.Getenv("ALLOWED_CHAT_IDS"); raw != "" {
-		for _, s := range strings.Split(raw, ",") {
+		for s := range strings.SplitSeq(raw, ",") {
 			s = strings.TrimSpace(s)
 			if s == "" {
 				continue

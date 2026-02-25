@@ -55,7 +55,6 @@ func (s *Scheduler) executeDueTasks(ctx context.Context) {
 			continue
 		}
 
-		// Check if the task has expired
 		if task.Expires != nil {
 			expires, err := time.Parse(time.RFC3339, *task.Expires)
 			if err != nil {

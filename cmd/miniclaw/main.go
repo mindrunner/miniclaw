@@ -11,11 +11,8 @@ import (
 )
 
 func main() {
-	homeDir := internal.HomeDir()
-	agentDir := internal.AgentDir()
-	cfg := internal.LoadConfig(homeDir, agentDir)
+	cfg := internal.LoadConfig(internal.HomeDir(), internal.AgentDir())
 	app := internal.NewApp(cfg)
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

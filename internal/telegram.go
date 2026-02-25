@@ -40,12 +40,10 @@ func NewTelegramBot(token string, onMessage func(msg models.Message)) (*Telegram
 		},
 	})
 
-	// Handle commands
 	dispatcher.AddHandler(handlers.NewCommand("chatid", tb.handleChatID))
 	dispatcher.AddHandler(handlers.NewCommand("cancel", tb.handleCancel))
 	dispatcher.AddHandler(handlers.NewCommand("restart", tb.handleRestart))
 
-	// Handle all text messages
 	dispatcher.AddHandler(handlers.NewMessage(nil, tb.handleMessage))
 
 	tb.updater = ext.NewUpdater(dispatcher, nil)
@@ -121,7 +119,6 @@ func (tb *TelegramBot) SendTyping(chatID int64) {
 	tb.bot.SendChatAction(chatID, "typing", nil)
 }
 
-// SendStatusMessage sends a plain text message and returns its message ID.
 // Returns 0 on error (best-effort).
 func (tb *TelegramBot) SendStatusMessage(chatID int64, text string) int64 {
 	msg, err := tb.bot.SendMessage(chatID, text, &gotgbot.SendMessageOpts{
@@ -134,7 +131,6 @@ func (tb *TelegramBot) SendStatusMessage(chatID int64, text string) int64 {
 	return msg.MessageId
 }
 
-// EditMessage edits a previously sent message in-place.
 // Best-effort: logs errors but doesn't return them.
 func (tb *TelegramBot) EditMessage(chatID, messageID int64, text string) {
 	_, _, err := tb.bot.EditMessageText(text, &gotgbot.EditMessageTextOpts{
@@ -192,7 +188,6 @@ func splitMessage(text string) []string {
 			break
 		}
 
-		// Find a newline to split on within the limit
 		cutoff := maxMessageLength
 		idx := strings.LastIndex(text[:cutoff], "\n")
 		if idx > 0 {

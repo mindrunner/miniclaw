@@ -84,7 +84,6 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 	defer a.activeAgents.Delete(input.ChatID)
 	defer cancel()
 
-	// Send typing indicator every 4s until the agent finishes
 	go func() {
 		a.bot.SendTyping(input.ChatID)
 		ticker := time.NewTicker(4 * time.Second)
@@ -121,7 +120,6 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 			return
 		}
 
-		// Debounce subsequent edits to ~800ms
 		if debounceTimer != nil {
 			debounceTimer.Stop()
 		}
@@ -135,7 +133,6 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 
 	output, err := a.agentRunner.Run(ctx, input, onToolUse)
 
-	// Stop any pending debounce timer
 	mu.Lock()
 	if debounceTimer != nil {
 		debounceTimer.Stop()
@@ -159,7 +156,6 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 		return
 	}
 
-	// Finalise status message if tools were used
 	if statusMsgID != 0 {
 		a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderFinal())
 	}
@@ -177,7 +173,6 @@ func (a *App) restartAgent(chatID int64) {
 		return
 	}
 
-	// Cancel any active agent for this chat
 	if val, loaded := a.activeAgents.Load(chatID); loaded {
 		if cancel, ok := val.(context.CancelFunc); ok {
 			cancel()

@@ -29,7 +29,6 @@ func NewAgentRunner(cfg Config, sessions *SessionStore) *AgentRunner {
 	}
 }
 
-// stream-json parse structs
 type streamEvent struct {
 	Type      string         `json:"type"`
 	Subtype   string         `json:"subtype"`
@@ -45,7 +44,7 @@ type streamMessage struct {
 type streamContent struct {
 	Type  string                 `json:"type"`
 	Name  string                 `json:"name"`
-	Input map[string]interface{} `json:"input"`
+	Input map[string]any `json:"input"`
 }
 
 func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput, onToolUse func(toolName, label string)) (models.AgentOutput, error) {
@@ -143,7 +142,7 @@ func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput, onToolUs
 	}, nil
 }
 
-func toolLabel(name string, input map[string]interface{}) string {
+func toolLabel(name string, input map[string]any) string {
 	getString := func(key string) string {
 		if v, ok := input[key]; ok {
 			if s, ok := v.(string); ok {
@@ -184,9 +183,9 @@ func toolLabel(name string, input map[string]interface{}) string {
 			return html.EscapeString(d)
 		}
 	case "TodoWrite":
-		if todos, ok := input["todos"].([]interface{}); ok {
+		if todos, ok := input["todos"].([]any); ok {
 			for _, t := range todos {
-				if todo, ok := t.(map[string]interface{}); ok {
+				if todo, ok := t.(map[string]any); ok {
 					if todo["status"] == "in_progress" {
 						if c, ok := todo["content"].(string); ok {
 							return "<b>" + html.EscapeString(c) + "</b>"
