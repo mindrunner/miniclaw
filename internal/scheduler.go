@@ -55,6 +55,18 @@ func (s *Scheduler) executeDueTasks(ctx context.Context) {
 			continue
 		}
 
+		// Check if the task has expired
+		if task.Expires != nil {
+			expires, err := time.Parse(time.RFC3339, *task.Expires)
+			if err != nil {
+				log.Printf("error parsing expires for task %s: %v", task.Filename, err)
+			} else if now.After(expires) {
+				log.Printf("[task] expired %s, deleting", task.Filename)
+				s.deleteTask(task)
+				continue
+			}
+		}
+
 		nextRun, err := time.Parse(time.RFC3339, *task.NextRun)
 		if err != nil {
 			log.Printf("error parsing next_run for task %s: %v", task.Filename, err)
@@ -78,16 +90,16 @@ func (s *Scheduler) executeDueTasks(ctx context.Context) {
 			log.Printf("[task] error running %s: %v", task.Filename, err)
 		}
 
-		// Update next_run or mark as completed
+		// Delete one-time tasks, reschedule recurring ones
 		newNextRun := s.calculateNextRun(task)
 		if newNextRun == nil {
-			task.Status = "completed"
-			log.Printf("[task] completed %s (no next run)", task.Filename)
+			log.Printf("[task] completed %s, deleting", task.Filename)
+			s.deleteTask(task)
 		} else {
 			log.Printf("[task] rescheduled %s next_run=%s", task.Filename, *newNextRun)
+			task.NextRun = newNextRun
+			s.saveTask(task)
 		}
-		task.NextRun = newNextRun
-		s.saveTask(task)
 	}
 }
 
@@ -151,6 +163,13 @@ func (s *Scheduler) calculateNextRun(task models.Task) *string {
 	default:
 		log.Printf("unknown schedule type %q for task %s", task.ScheduleType, task.Filename)
 		return nil
+	}
+}
+
+func (s *Scheduler) deleteTask(task models.Task) {
+	path := filepath.Join(s.config.DataDir, "tasks", task.Filename)
+	if err := os.Remove(path); err != nil {
+		log.Printf("error deleting task file %s: %v", task.Filename, err)
 	}
 }
 

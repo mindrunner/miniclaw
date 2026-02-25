@@ -6,6 +6,7 @@ type Task struct {
 	ChatID        int64   `json:"chat_id"`
 	ScheduleType  string  `json:"type"`     // "once", "cron", "interval"
 	ScheduleValue string  `json:"value"`
-	Status        string  `json:"status"`   // "active", "paused", "completed"
+	Status        string  `json:"status"`   // "active", "paused"
 	NextRun       *string `json:"next_run"`
+	Expires       *string `json:"expires,omitempty"`
 }

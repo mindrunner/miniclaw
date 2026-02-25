@@ -49,6 +49,7 @@ Fields:
 - value: the schedule expression (cron string, duration, or empty for "once")
 - status: "active" or "paused"
 - next_run: ISO 8601 timestamp of next execution
+- expires: (optional) ISO 8601 timestamp after which the task is automatically deleted
 
 Timezone handling:
 - The user's preferred timezone is defined in preferences.md — always interpret user-specified times in that timezone unless they explicitly include a different one
