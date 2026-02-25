@@ -13,6 +13,7 @@ var toolEmoji = map[string]string{
 	"WebFetch":  "🌐",
 	"Task":          "🤖",
 	"EnterPlanMode": "📝",
+	"TodoWrite":     "🏗️",
 }
 
 type statusEntry struct {
@@ -31,7 +32,7 @@ func newStatusTracker() *statusTracker {
 // Add appends a tool action and returns true if this is the first entry.
 // Returns false without adding if the tool should be hidden.
 func (s *statusTracker) Add(toolName, label string) bool {
-	if toolName == "ExitPlanMode" {
+	if toolName == "ExitPlanMode" || (toolName == "TodoWrite" && label == "") {
 		return len(s.entries) == 0
 	}
 	emoji, ok := toolEmoji[toolName]

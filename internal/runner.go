@@ -189,7 +189,7 @@ func toolLabel(name string, input map[string]interface{}) string {
 				if todo, ok := t.(map[string]interface{}); ok {
 					if todo["status"] == "in_progress" {
 						if c, ok := todo["content"].(string); ok {
-							return html.EscapeString(c)
+							return "<b>" + html.EscapeString(c) + "</b>"
 						}
 					}
 				}
