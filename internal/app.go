@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"log"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -27,7 +28,7 @@ func NewApp(cfg Config) *App {
 
 	a.agentRunner = NewAgentRunner(cfg, sessions)
 
-	bot, err := NewTelegramBot(cfg.TelegramToken, a.onMessage)
+	bot, err := NewTelegramBot(cfg.TelegramToken, filepath.Join(cfg.WorkspaceDir, "files"), a.onMessage)
 	if err != nil {
 		log.Fatalf("failed to create telegram bot: %v", err)
 	}
@@ -70,11 +71,13 @@ func (a *App) onMessage(msg models.Message) {
 	}
 
 	input := models.AgentInput{
-		ChatID:         msg.ChatID,
-		MessageID:      msg.MessageID,
-		Prompt:         msg.Content,
-		ReplyToSender:  msg.ReplyToSender,
-		ReplyToContent: msg.ReplyToContent,
+		ChatID:          msg.ChatID,
+		MessageID:       msg.MessageID,
+		Prompt:          msg.Content,
+		FilePath:        msg.FilePath,
+		ReplyToSender:   msg.ReplyToSender,
+		ReplyToContent:  msg.ReplyToContent,
+		ReplyToFilePath: msg.ReplyToFilePath,
 	}
 
 	go a.startAgent(ctx, cancel, input)

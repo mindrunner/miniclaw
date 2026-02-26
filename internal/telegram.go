@@ -2,8 +2,13 @@ package internal
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"miniclaw/internal/models"
 
@@ -17,12 +22,13 @@ const maxMessageLength = 4096
 type TelegramBot struct {
 	bot       *gotgbot.Bot
 	updater   *ext.Updater
+	fileDir   string
 	onMessage func(msg models.Message)
 	onCancel  func(chatID int64)
 	onRestart func(chatID int64)
 }
 
-func NewTelegramBot(token string, onMessage func(msg models.Message)) (*TelegramBot, error) {
+func NewTelegramBot(token string, fileDir string, onMessage func(msg models.Message)) (*TelegramBot, error) {
 	b, err := gotgbot.NewBot(token, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating bot: %w", err)
@@ -30,6 +36,7 @@ func NewTelegramBot(token string, onMessage func(msg models.Message)) (*Telegram
 
 	tb := &TelegramBot{
 		bot:       b,
+		fileDir:   fileDir,
 		onMessage: onMessage,
 	}
 
@@ -87,10 +94,10 @@ func (tb *TelegramBot) handleRestart(_ *gotgbot.Bot, ctx *ext.Context) error {
 
 func (tb *TelegramBot) handleMessage(_ *gotgbot.Bot, ctx *ext.Context) error {
 	msg := tb.parseMessage(ctx.EffectiveMessage)
-	if msg.Content == "" {
+	if msg.Content == "" && msg.FilePath == "" {
 		return nil
 	}
-	log.Printf("[recv] chat=%d sender=%q text=%q", msg.ChatID, msg.Sender, msg.Content)
+	log.Printf("[recv] chat=%d sender=%q text=%q file=%q", msg.ChatID, msg.Sender, msg.Content, msg.FilePath)
 	tb.onMessage(msg)
 	return nil
 }
@@ -100,7 +107,17 @@ func (tb *TelegramBot) parseMessage(msg *gotgbot.Message) models.Message {
 		ChatID:    msg.Chat.Id,
 		MessageID: msg.MessageId,
 		Sender:    senderName(msg.From),
-		Content:   msg.Text,
+		Content:   msg.GetText(),
+	}
+
+	if fileID, fileName := extractFileID(msg); fileID != "" {
+		dstDir := filepath.Join(tb.fileDir, fmt.Sprintf("%d", msg.Chat.Id))
+		path, err := tb.downloadFile(fileID, fileName, dstDir)
+		if err != nil {
+			log.Printf("[recv] chat=%d failed to download file: %v", msg.Chat.Id, err)
+		} else {
+			m.FilePath = path
+		}
 	}
 
 	if msg.ReplyToMessage != nil {
@@ -108,11 +125,93 @@ func (tb *TelegramBot) parseMessage(msg *gotgbot.Message) models.Message {
 		if msg.Quote != nil && msg.Quote.Text != "" {
 			m.ReplyToContent = msg.Quote.Text
 		} else {
-			m.ReplyToContent = msg.ReplyToMessage.Text
+			m.ReplyToContent = msg.ReplyToMessage.GetText()
+		}
+
+		if fileID, fileName := extractFileID(msg.ReplyToMessage); fileID != "" {
+			dstDir := filepath.Join(tb.fileDir, fmt.Sprintf("%d", msg.Chat.Id))
+			path, err := tb.downloadFile(fileID, fileName, dstDir)
+			if err != nil {
+				log.Printf("[recv] chat=%d failed to download reply-to file: %v", msg.Chat.Id, err)
+			} else {
+				m.ReplyToFilePath = path
+			}
 		}
 	}
 
 	return m
+}
+
+func extractFileID(msg *gotgbot.Message) (fileID, fileName string) {
+	if len(msg.Photo) > 0 {
+		return msg.Photo[len(msg.Photo)-1].FileId, ""
+	}
+	if msg.Document != nil {
+		return msg.Document.FileId, msg.Document.FileName
+	}
+	if msg.Video != nil {
+		return msg.Video.FileId, msg.Video.FileName
+	}
+	if msg.Audio != nil {
+		return msg.Audio.FileId, msg.Audio.FileName
+	}
+	if msg.Voice != nil {
+		return msg.Voice.FileId, ""
+	}
+	return "", ""
+}
+
+func (tb *TelegramBot) downloadFile(fileID, fileName, dstDir string) (string, error) {
+	file, err := tb.bot.GetFile(fileID, nil)
+	if err != nil {
+		return "", fmt.Errorf("getting file info: %w", err)
+	}
+
+	if fileName == "" {
+		ext := filepath.Ext(file.FilePath)
+		if ext == "" {
+			ext = ".jpg"
+		}
+		fileName = file.FileUniqueId + ext
+	} else {
+		ext := filepath.Ext(fileName)
+		fileName = strings.TrimSuffix(fileName, ext) + "_" + file.FileUniqueId + ext
+	}
+
+	dstPath := filepath.Join(dstDir, fileName)
+
+	// Skip download if the file already exists on disk
+	if _, err := os.Stat(dstPath); err == nil {
+		return dstPath, nil
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(file.URL(tb.bot, nil))
+	if err != nil {
+		return "", fmt.Errorf("downloading file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download returned status %d", resp.StatusCode)
+	}
+
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return "", fmt.Errorf("creating file directory: %w", err)
+	}
+
+	out, err := os.Create(dstPath)
+	if err != nil {
+		return "", fmt.Errorf("creating file: %w", err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		os.Remove(dstPath)
+		return "", fmt.Errorf("writing file: %w", err)
+	}
+
+	return dstPath, nil
 }
 
 func (tb *TelegramBot) SendTyping(chatID int64) {

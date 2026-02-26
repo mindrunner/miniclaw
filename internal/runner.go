@@ -42,8 +42,8 @@ type streamMessage struct {
 }
 
 type streamContent struct {
-	Type  string                 `json:"type"`
-	Name  string                 `json:"name"`
+	Type  string         `json:"type"`
+	Name  string         `json:"name"`
 	Input map[string]any `json:"input"`
 }
 
@@ -205,8 +205,25 @@ func codeTag(s string) string {
 }
 
 func (r *AgentRunner) buildPrompt(input models.AgentInput) string {
+	var parts []string
+
 	if input.ReplyToContent != "" {
-		return fmt.Sprintf("[Replying to %s: %s]\n\n%s", input.ReplyToSender, input.ReplyToContent, input.Prompt)
+		parts = append(parts, fmt.Sprintf("[Replying to %s: %s]", input.ReplyToSender, input.ReplyToContent))
 	}
-	return input.Prompt
+
+	if input.ReplyToFilePath != "" {
+		parts = append(parts, fmt.Sprintf("[Replied-to message has file attached: %s — use the Read tool to view this file]", input.ReplyToFilePath))
+	}
+
+	if input.FilePath != "" {
+		parts = append(parts, fmt.Sprintf("[File attached: %s — use the Read tool to view this file]", input.FilePath))
+	}
+
+	if input.Prompt != "" {
+		parts = append(parts, input.Prompt)
+	} else if input.FilePath != "" {
+		parts = append(parts, "The user sent a file. Please view and describe or analyse it.")
+	}
+
+	return strings.Join(parts, "\n\n")
 }

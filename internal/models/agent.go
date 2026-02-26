@@ -1,11 +1,13 @@
 package models
 
 type AgentInput struct {
-	ChatID         int64
-	MessageID      int64  // telegram message ID of the user's message
-	Prompt         string
-	ReplyToSender  string // who sent the message being replied to (empty if not a reply)
-	ReplyToContent string // content of the message being replied to (empty if not a reply)
+	ChatID          int64
+	MessageID       int64 // telegram message ID of the user's message
+	Prompt          string
+	FilePath        string // local path to downloaded attachment, if any
+	ReplyToSender   string // who sent the message being replied to (empty if not a reply)
+	ReplyToContent  string // content of the message being replied to (empty if not a reply)
+	ReplyToFilePath string // local path to replied-to message's attachment, if any
 }
 
 type AgentOutput struct {
