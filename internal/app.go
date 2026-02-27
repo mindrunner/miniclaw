@@ -107,6 +107,7 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 	// Debounce timer to avoid rapid edits hitting Telegram rate limits
 	var mu sync.Mutex
 	var debounceTimer *time.Timer
+	var lastStatusText string
 
 	onToolUse := func(toolName, label string) {
 		mu.Lock()
@@ -115,7 +116,8 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 		first := tracker.Add(toolName, label)
 
 		if first {
-			statusMsgID = a.bot.SendStatusMessage(input.ChatID, tracker.Render())
+			lastStatusText = tracker.Render()
+			statusMsgID = a.bot.SendStatusMessage(input.ChatID, lastStatusText)
 			return
 		}
 
@@ -126,11 +128,17 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 		if debounceTimer != nil {
 			debounceTimer.Stop()
 		}
-		debounceTimer = time.AfterFunc(800*time.Millisecond, func() {
+		debounceTimer = time.AfterFunc(1*time.Second, func() {
 			mu.Lock()
 			text := tracker.Render()
+			changed := text != lastStatusText
+			if changed {
+				lastStatusText = text
+			}
 			mu.Unlock()
-			a.bot.EditMessage(input.ChatID, statusMsgID, text)
+			if changed {
+				a.bot.EditMessage(input.ChatID, statusMsgID, text)
+			}
 		})
 	}
 
