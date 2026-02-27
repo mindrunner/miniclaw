@@ -15,10 +15,12 @@ You are helping a new user set up miniclaw after forking the repo. Walk through 
 
 Run these checks silently and report the results as a checklist:
 
-1. **Go** — run `which go` and `go version`. Require Go 1.23+.
-2. **Claude CLI** — run `which claude` and `claude --version`. This is required for the agent runtime. Assume the user is authenticated since they are already using Claude to set it up — do not run any Claude commands yourself as it will fail.
+1. **Go** — run `which go` and `go version`. If `which go` fails, check `~/go/bin/go` and `/usr/local/go/bin/go`. Require Go 1.23+.
+2. **Claude CLI** — run `which claude`. If that fails, check these common paths: `~/.claude/local/claude`, `/usr/local/bin/claude`, `~/.npm-global/bin/claude`. Once found, report the path and run `<path> --version`. This is required for the agent runtime. Assume the user is authenticated since they are already using Claude to set it up — do not run any Claude commands yourself as it will fail.
 
 If any prerequisite is missing, tell the user what to fix and stop. Do not continue until all checks pass.
+
+**Important:** Remember the directories where `go` and `claude` were found — these will be needed for the PATH in the launchd plist (macOS) in Step 12.
 
 ## Step 2: Install Go dependencies
 
@@ -162,8 +164,9 @@ To set up or update the service:
 
 1. Determine the absolute path to the `miniclaw` binary by running `which miniclaw` or falling back to `ls ~/go/bin/miniclaw`.
 2. Read `~/.miniclaw/.env` and parse all key-value pairs — these will become `EnvironmentVariables` in the plist.
-3. Run `mkdir -p ~/Library/LaunchAgents` (idempotent).
-4. Write `~/Library/LaunchAgents/com.miniclaw.agent.plist` via the Bash tool with the following content:
+3. Build a `PATH` value that includes the directories where `go`, `claude`, and `miniclaw` were found (from Step 1 and above), plus standard paths: `/usr/local/bin`, `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin`. Deduplicate entries.
+4. Run `mkdir -p ~/Library/LaunchAgents` (idempotent).
+5. Write `~/Library/LaunchAgents/com.miniclaw.agent.plist` via the Bash tool with the following content:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -178,6 +181,8 @@ To set up or update the service:
     </array>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>PATH</key>
+        <string><constructed PATH from step 3></string>
         <key>TELEGRAM_BOT_TOKEN</key>
         <string><value></string>
         <key>ALLOWED_CHAT_IDS</key>
