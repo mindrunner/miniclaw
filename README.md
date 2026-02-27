@@ -9,16 +9,20 @@ miniclaw is deliberately small. The entire codebase fits in a single sitting of 
 ## What it does
 
 - **Session persistence** — each chat maintains its own Claude conversation across restarts
-- **Scheduled tasks** — cron, interval, and one-shot tasks stored as simple JSON files
-- **Real-time status** — shows what tools Claude is using while it works
+- **Scheduled tasks** — cron, interval, and one-shot tasks with auto-expiry, stored as simple JSON files
+- **Real-time status** — shows what tools Claude is using while it works, including todo progress
 - **Reply chains** — replies to bot messages include prior context
 - **Per-chat concurrency** — one agent per chat, no race conditions
+- **File & image attachments** — send photos, documents, and other files directly to the bot
+- **Voice transcription** — voice messages are transcribed via Groq Whisper API and processed as text
+- **Skills** — extensible slash commands (`/diff`, `/restart`, `/setup`) with pass-through to built-in CLI commands (`/compact`, `/clear`, etc.)
 
 ## Prerequisites
 
 - Go 1.23+
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (installed and authenticated)
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
+- (Optional) A [Groq API key](https://console.groq.com/) for voice transcription
 
 ## Setup
 
@@ -42,12 +46,18 @@ Edit these files to make the bot your own.
 
 ```
 Repository                      Runtime (~/.miniclaw/)
-├── agent/                      ├── .env
-│   ├── CLAUDE.md               ├── data/
-│   └── preferences.md          │   ├── sessions.json
-├── cmd/miniclaw/               │   └── tasks/
-│   └── main.go                 │       └── *.json
-├── internal/                   └── workspace/
+├── .claude/                    ├── .env
+│   └── skills/                 ├── data/
+│       ├── diff/               │   ├── sessions.json
+│       ├── restart/            │   └── tasks/
+│       ├── setup/              │       └── *.json
+│       └── transcribe/         └── workspace/
+├── agent/
+│   ├── CLAUDE.md
+│   └── preferences.md
+├── cmd/miniclaw/
+│   └── main.go
+├── internal/
 │   ├── app.go
 │   ├── config.go
 │   ├── models/
