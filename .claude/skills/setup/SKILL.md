@@ -2,7 +2,7 @@
 name: setup
 description: Interactive setup wizard for new miniclaw users who just forked the repo
 disable-model-invocation: true
-allowed-tools: "Read, Edit, Bash(go *), Bash(which *), Bash(claude *), Bash(mkdir *), Bash(ls *), Bash(cat *), Bash(chmod *), Bash(systemctl *), Bash(loginctl *)"
+allowed-tools: "Read, Edit, Bash(go *), Bash(which *), Bash(claude *), Bash(mkdir *), Bash(ls *), Bash(cat *), Bash(chmod *), Bash(systemctl *), Bash(loginctl *), Bash(curl *)"
 ---
 
 # miniclaw Setup Wizard
@@ -144,7 +144,27 @@ WantedBy=default.target
 6. Enable lingering so it runs even when the user is not logged in: `loginctl enable-linger`
 7. Ask if they want to start it now. If yes: `systemctl --user start miniclaw` and confirm it's running with `systemctl --user status miniclaw`.
 
-## Step 13: Done
+## Step 13: Register bot commands (optional)
+
+If `TELEGRAM_BOT_TOKEN` is configured, ask the user if they want to register bot commands with Telegram so they appear in the command menu when typing `/`.
+
+If they agree, run the `/commands` skill: read all SKILL.md files in `.claude/skills/*/SKILL.md`, extract the `name` and `description` from each frontmatter, and combine them with these hardcoded commands:
+
+- `chatid` — "Get your Telegram chat ID"
+- `cancel` — "Cancel the current request"
+- `compact` — "Compact conversation context to free up space"
+
+Then call the Telegram API:
+
+```bash
+curl -s https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMyCommands \
+  -H "Content-Type: application/json" \
+  -d '{"commands": [...]}'
+```
+
+Report the registered commands and confirm success. If they decline, tell them they can run `/commands` later.
+
+## Step 14: Done
 
 Print a summary:
 
