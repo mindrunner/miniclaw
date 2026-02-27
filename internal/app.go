@@ -142,7 +142,11 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 		})
 	}
 
-	output, err := a.agentRunner.Run(ctx, input, onToolUse)
+	var callback func(string, string)
+	if a.config.ShowStatusUpdates {
+		callback = onToolUse
+	}
+	output, err := a.agentRunner.Run(ctx, input, callback)
 
 	mu.Lock()
 	if debounceTimer != nil {
