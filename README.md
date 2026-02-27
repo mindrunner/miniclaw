@@ -13,6 +13,7 @@ miniclaw is deliberately small. The entire codebase fits in a single sitting of 
 - **Real-time status** — shows what tools Claude is using while it works, including todo progress
 - **Reply chains** — replies to bot messages include prior context
 - **Per-chat concurrency** — one agent per chat, no race conditions
+- **Chat allowlist** — restrict access to specific Telegram chat IDs via `ALLOWED_CHAT_IDS`
 - **File & image attachments** — send photos, documents, and other files directly to the bot
 - **Voice transcription** — voice messages are transcribed via Groq Whisper API and processed as text
 - **Skills** — extensible slash commands (`/diff`, `/restart`, `/setup`) with pass-through to built-in CLI commands (`/compact`, `/clear`, etc.)
