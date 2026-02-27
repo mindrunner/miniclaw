@@ -38,7 +38,22 @@ type streamEvent struct {
 }
 
 type streamMessage struct {
-	Content []streamContent `json:"content"`
+	Content []streamContent
+}
+
+func (m *streamMessage) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	// content can be a string (text response) or array (tool use blocks).
+	// We only need the array form; ignore strings silently.
+	if len(raw.Content) > 0 && raw.Content[0] == '[' {
+		return json.Unmarshal(raw.Content, &m.Content)
+	}
+	return nil
 }
 
 type streamContent struct {
