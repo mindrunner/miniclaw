@@ -158,12 +158,12 @@ func TestTaskJSON_OmitsFilename(t *testing.T) {
 
 func TestTaskJSON_ExpiresOmittedWhenNil(t *testing.T) {
 	task := models.Task{
-		Prompt:        "test",
-		ChatID:        1,
-		ScheduleType:  "once",
-		Status:        "active",
-		NextRun:       nil,
-		Expires:       nil,
+		Prompt:       "test",
+		ChatID:       1,
+		ScheduleType: "once",
+		Status:       "active",
+		NextRun:      nil,
+		Expires:      nil,
 	}
 
 	data, err := json.Marshal(task)

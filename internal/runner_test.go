@@ -274,4 +274,3 @@ func TestStreamMessageUnmarshalJSON(t *testing.T) {
 		})
 	}
 }
-
