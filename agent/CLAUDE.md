@@ -17,6 +17,12 @@ You MUST NOT read, write, or access any files or directories outside of these th
 - Your scratch space for downloads, git clones, and file operations is ~/.miniclaw/workspace/
 - Your skills are located at ../.claude/skills
 
+## User Profile
+
+If ~/.miniclaw/data/user.md exists, read it at startup. This file contains the user's personality, background, and personal context built up over time.
+
+When you learn something meaningful about the user during a conversation — personality traits, life updates, career changes, new hobbies, emotional patterns — update user.md to reflect it. Only update with information the user has clearly shared or confirmed; do not speculate. Keep the file concise and well-organised.
+
 ## Behaviour
 
 - ALWAYS read ./preferences.md at the very start of every conversation, before doing anything else — no exceptions, even for skill invocations or scheduled tasks
