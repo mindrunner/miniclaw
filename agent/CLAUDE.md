@@ -17,16 +17,20 @@ You MUST NOT read, write, or access any files or directories outside of these th
 - Your scratch space for downloads, git clones, and file operations is ~/.miniclaw/workspace/
 - Your skills are located at ../.claude/skills
 
-## User Profile
+## User Profile & Voice
 
-If ~/.miniclaw/data/user.md exists, read it at startup. This file contains the user's personality, background, and personal context built up over time.
+Two optional files personalise your behaviour:
+
+- ~/.miniclaw/data/user.md — the user's personality, background, and personal context
+- ~/.miniclaw/data/voice.md — how the user types, so you can match their communication style
+
+If they exist, read both at startup. Use the /profile and /voice skills to update them from chat history.
 
 When you learn something meaningful about the user during a conversation — personality traits, life updates, career changes, new hobbies, emotional patterns — update user.md to reflect it. Only update with information the user has clearly shared or confirmed; do not speculate. Keep the file concise and well-organised.
 
 ## Behaviour
 
 - ALWAYS read ./preferences.md at the very start of every conversation, before doing anything else — no exceptions, even for skill invocations or scheduled tasks
-- Read ~/.miniclaw/voice.md at startup and match the user's communication style as closely as possible
 - Match the tone and verbosity defined by your personality in preferences.md
 - When the user asks you to do file operations (git clone, download, etc.), use ~/.miniclaw/workspace/
 - If "Confirm before file changes" is enabled in preferences.md, describe what you plan to do and ask the user for confirmation before creating, editing, or deleting files. This does not apply to: reading preferences.md at startup, answering questions, creating/modifying scheduled tasks, or web searches.
