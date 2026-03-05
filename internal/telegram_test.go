@@ -42,7 +42,7 @@ func TestSplitMessage_SplitsOnNewline(t *testing.T) {
 }
 
 func TestSplitMessage_NoNewlineFallback(t *testing.T) {
-	// A single long line with no newlines — must hard cut at maxMessageLength
+	// A single long line with no newlines, must hard cut at maxMessageLength
 	text := strings.Repeat("x", maxMessageLength+100)
 	chunks := splitMessage(text)
 	if len(chunks) != 2 {

@@ -231,11 +231,11 @@ func (r *AgentRunner) buildPrompt(input models.AgentInput) string {
 	}
 
 	if input.ReplyToFilePath != "" {
-		parts = append(parts, fmt.Sprintf("[Replied-to message has file attached: %s — use the Read tool to view this file]", input.ReplyToFilePath))
+		parts = append(parts, fmt.Sprintf("[Replied-to message has file attached: %s - use the Read tool to view this file]", input.ReplyToFilePath))
 	}
 
 	if input.FilePath != "" {
-		parts = append(parts, fmt.Sprintf("[File attached: %s — use the Read tool to view this file]", input.FilePath))
+		parts = append(parts, fmt.Sprintf("[File attached: %s - use the Read tool to view this file]", input.FilePath))
 	}
 
 	if input.Prompt != "" {

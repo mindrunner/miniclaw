@@ -56,7 +56,7 @@ func AgentDir() string {
 
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
-		log.Fatalf("agent directory not found at %s — set MINICLAW_AGENT_DIR or run from the repo root", dir)
+		log.Fatalf("agent directory not found at %s - set MINICLAW_AGENT_DIR or run from the repo root", dir)
 	}
 
 	return dir

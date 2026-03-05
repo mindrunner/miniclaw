@@ -89,7 +89,7 @@ func (a *App) onMessage(msg models.Message) {
 	go a.runQueued(input)
 }
 
-// runQueuedTask is the RunFunc used by the scheduler — acquires the mutex and runs the agent.
+// runQueuedTask is the RunFunc used by the scheduler. Acquires the mutex and runs the agent.
 func (a *App) runQueuedTask(ctx context.Context, input models.AgentInput) (models.AgentOutput, error) {
 	cs := a.getChatState(input.ChatID)
 	cs.mu.Lock()
