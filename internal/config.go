@@ -22,7 +22,6 @@ type Config struct {
 	SchedulerInterval time.Duration
 }
 
-// HomeDir resolves ~/.miniclaw/, creating subdirectories as needed.
 func HomeDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -43,7 +42,6 @@ func HomeDir() string {
 	return dir
 }
 
-// AgentDir resolves the agent directory from MINICLAW_AGENT_DIR or CWD.
 func AgentDir() string {
 	dir := os.Getenv("MINICLAW_AGENT_DIR")
 	if dir == "" {
@@ -62,7 +60,6 @@ func AgentDir() string {
 	return dir
 }
 
-// LoadConfig reads config from environment variables.
 func LoadConfig(homeDir string, agentDir string) Config {
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {

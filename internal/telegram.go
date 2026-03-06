@@ -182,7 +182,6 @@ func (tb *TelegramBot) downloadFile(fileID, fileName, dstDir string) (string, er
 
 	dstPath := filepath.Join(dstDir, fileName)
 
-	// Skip download if the file already exists on disk
 	if _, err := os.Stat(dstPath); err == nil {
 		return dstPath, nil
 	}
@@ -254,7 +253,6 @@ func (tb *TelegramBot) SendReply(chatID int64, replyToMessageID int64, text stri
 	return err
 }
 
-// SendFile sends a local file to the chat as a document (preserves original quality).
 func (tb *TelegramBot) SendFile(chatID int64, filePath string, caption string) error {
 	f, err := os.Open(filePath)
 	if err != nil {

@@ -207,7 +207,6 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 	}
 }
 
-// sendAgentOutput checks for an outbox.json, sends any listed files, then sends the text.
 func (a *App) sendAgentOutput(chatID int64, result string) {
 	outboxPath := filepath.Join(a.config.HomeDir, "outbox.json")
 	entries, err := ReadOutbox(outboxPath)

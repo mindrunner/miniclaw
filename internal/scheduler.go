@@ -14,10 +14,8 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// RunFunc runs an agent input through the per-chat queue, blocking until complete.
 type RunFunc func(ctx context.Context, input models.AgentInput) (models.AgentOutput, error)
 
-// SendOutputFunc sends agent output (files + text) to a chat.
 type SendOutputFunc func(chatID int64, result string)
 
 type Scheduler struct {
@@ -95,7 +93,6 @@ func (s *Scheduler) executeDueTasks(ctx context.Context) {
 			log.Printf("[task] error running %s: %v", task.Filename, err)
 		}
 
-		// Delete one-time tasks, reschedule recurring ones
 		newNextRun := s.calculateNextRun(task)
 		if newNextRun == nil {
 			log.Printf("[task] completed %s (chat=%d prompt=%q), deleting", task.Filename, task.ChatID, task.Prompt)

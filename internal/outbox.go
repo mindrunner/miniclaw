@@ -8,13 +8,11 @@ import (
 	"strings"
 )
 
-// OutboxEntry represents a single file to send via Telegram.
 type OutboxEntry struct {
 	Path    string `json:"path"`
 	Caption string `json:"caption,omitempty"`
 }
 
-// ReadOutbox reads and parses outbox.json, returning nil if it doesn't exist.
 func ReadOutbox(path string) ([]OutboxEntry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -32,13 +30,10 @@ func ReadOutbox(path string) ([]OutboxEntry, error) {
 	return entries, nil
 }
 
-// RemoveOutbox deletes the outbox file. Errors are ignored.
 func RemoveOutbox(path string) {
 	os.Remove(path)
 }
 
-// ValidateOutboxEntry checks that the entry's path is within allowedDirs,
-// exists, is a regular file, and is under 50MB.
 func ValidateOutboxEntry(entry OutboxEntry, allowedDirs []string) error {
 	absPath, err := filepath.Abs(entry.Path)
 	if err != nil {
