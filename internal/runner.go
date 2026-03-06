@@ -195,7 +195,7 @@ func toolLabel(name string, input map[string]any) string {
 		}
 	case "Agent":
 		if d := getString("description"); d != "" {
-			return html.EscapeString(d)
+			return "<b>" + html.EscapeString(d) + "</b>"
 		}
 	case "Task":
 		if d := getString("description"); d != "" {
