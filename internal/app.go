@@ -24,6 +24,7 @@ type App struct {
 	agentRunner *AgentRunner
 	scheduler   *Scheduler
 	chats       sync.Map // map[int64]*chatState
+	showStatus  atomic.Bool
 }
 
 func NewApp(cfg Config) *App {
@@ -36,6 +37,9 @@ func NewApp(cfg Config) *App {
 
 	a.agentRunner = NewAgentRunner(cfg, sessions)
 
+	settings := LoadSettings(cfg.DataDir)
+	a.showStatus.Store(settings.ShowStatus)
+
 	bot, err := NewTelegramBot(cfg.TelegramToken, filepath.Join(cfg.WorkspaceDir, "files"), a.onMessage)
 	if err != nil {
 		log.Fatalf("failed to create telegram bot: %v", err)
@@ -43,6 +47,7 @@ func NewApp(cfg Config) *App {
 	a.bot = bot
 	a.bot.onCancel = a.cancelAgent
 	a.bot.onRestart = a.restartAgent
+	a.bot.onLogs = a.toggleLogs
 
 	a.scheduler = NewScheduler(cfg, a.runQueuedTask, a.sendAgentOutput)
 
@@ -170,7 +175,7 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 	}
 
 	var callback func(string, string)
-	if a.config.ShowStatusUpdates {
+	if a.showStatus.Load() {
 		callback = onToolUse
 	}
 	output, err := a.agentRunner.Run(ctx, input, callback)
@@ -263,6 +268,22 @@ func (a *App) cancelAgent(chatID int64) {
 		return
 	}
 	(*fn)()
+}
+
+func (a *App) toggleLogs(chatID int64) {
+	if !a.isAllowed(chatID) {
+		return
+	}
+	enabled := !a.showStatus.Load()
+	a.showStatus.Store(enabled)
+	s := LoadSettings(a.config.DataDir)
+	s.ShowStatus = enabled
+	SaveSettings(a.config.DataDir, s)
+	if enabled {
+		a.bot.SendMessage(chatID, "✅ Status updates enabled.")
+	} else {
+		a.bot.SendMessage(chatID, "🔕 Status updates disabled.")
+	}
 }
 
 func (a *App) isAllowed(chatID int64) bool {

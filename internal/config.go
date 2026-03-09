@@ -18,7 +18,6 @@ type Config struct {
 	WorkspaceDir      string
 	TelegramToken     string
 	AllowedChatIDs    []int64
-	ShowStatusUpdates bool
 	SchedulerInterval time.Duration
 }
 
@@ -81,8 +80,6 @@ func LoadConfig(homeDir string, agentDir string) Config {
 		}
 	}
 
-	showStatus, _ := strconv.ParseBool(os.Getenv("SHOW_STATUS_UPDATES"))
-
 	return Config{
 		HomeDir:           homeDir,
 		AgentDir:          agentDir,
@@ -90,7 +87,6 @@ func LoadConfig(homeDir string, agentDir string) Config {
 		WorkspaceDir:      filepath.Join(homeDir, "workspace"),
 		TelegramToken:     token,
 		AllowedChatIDs:    allowedIDs,
-		ShowStatusUpdates: showStatus,
 		SchedulerInterval: 10 * time.Second,
 	}
 }
