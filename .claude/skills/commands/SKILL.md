@@ -10,13 +10,14 @@ Read all available skills and register them as Telegram bot commands via the `se
 
 ## Step 1: Discover skills
 
-List all skill directories:
+List skill directories from both the repo and personal locations:
 
 ```bash
 ls -1 ../.claude/skills/
+ls -1 ~/.claude/skills/
 ```
 
-For each directory found, read its `SKILL.md` file using the Read tool. Extract the `name` and `description` fields from the YAML frontmatter.
+For each directory found in either location, read its `SKILL.md` file using the Read tool. Extract the `name` and `description` fields from the YAML frontmatter. If a skill exists in both locations, the personal one (~/.claude) takes precedence.
 
 ## Step 2: Build the command list
 
@@ -25,6 +26,8 @@ Combine the discovered skills with these hardcoded commands that don't have SKIL
 - `chatid`: "Get your Telegram chat ID"
 - `cancel`: "Cancel the current request"
 - `compact`: "Compact conversation context to free up space"
+- `logs`: "Toggle status updates on or off"
+- `simplify`: "Review changed code for reuse, quality, and efficiency"
 
 Telegram command descriptions have a 256-character limit. Truncate any descriptions that exceed this.
 
