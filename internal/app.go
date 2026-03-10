@@ -220,9 +220,8 @@ func (a *App) sendAgentOutput(chatID int64, result string) {
 	}
 
 	if len(entries) > 0 {
-		allowedDirs := []string{a.config.WorkspaceDir, a.config.AgentDir}
 		for _, entry := range entries {
-			if err := ValidateOutboxEntry(entry, allowedDirs); err != nil {
+			if err := ValidateOutboxEntry(entry); err != nil {
 				log.Printf("[outbox] chat=%d skipping %s: %v", chatID, entry.Path, err)
 				continue
 			}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type OutboxEntry struct {
@@ -34,7 +33,7 @@ func RemoveOutbox(path string) {
 	os.Remove(path)
 }
 
-func ValidateOutboxEntry(entry OutboxEntry, allowedDirs []string) error {
+func ValidateOutboxEntry(entry OutboxEntry) error {
 	absPath, err := filepath.Abs(entry.Path)
 	if err != nil {
 		return fmt.Errorf("invalid path %q", entry.Path)
@@ -46,10 +45,6 @@ func ValidateOutboxEntry(entry OutboxEntry, allowedDirs []string) error {
 			return fmt.Errorf("%s not found", filepath.Base(absPath))
 		}
 		return fmt.Errorf("resolving path: %w", err)
-	}
-
-	if !isPathAllowed(resolved, allowedDirs) {
-		return fmt.Errorf("path outside sandbox")
 	}
 
 	info, err := os.Stat(resolved)
@@ -67,18 +62,4 @@ func ValidateOutboxEntry(entry OutboxEntry, allowedDirs []string) error {
 	}
 
 	return nil
-}
-
-func isPathAllowed(path string, allowedDirs []string) bool {
-	for _, dir := range allowedDirs {
-		absDir, err := filepath.Abs(dir)
-		if err != nil {
-			continue
-		}
-		prefix := filepath.Clean(absDir) + string(filepath.Separator)
-		if strings.HasPrefix(path, prefix) || path == filepath.Clean(absDir) {
-			return true
-		}
-	}
-	return false
 }

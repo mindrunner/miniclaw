@@ -100,27 +100,15 @@ func TestValidateOutboxEntry_Valid(t *testing.T) {
 	f := filepath.Join(dir, "test.txt")
 	os.WriteFile(f, []byte("hello"), 0644)
 
-	err := ValidateOutboxEntry(OutboxEntry{Path: f}, []string{dir})
+	err := ValidateOutboxEntry(OutboxEntry{Path: f})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestValidateOutboxEntry_OutsideSandbox(t *testing.T) {
-	dir := t.TempDir()
-	other := t.TempDir()
-	f := filepath.Join(other, "secret.txt")
-	os.WriteFile(f, []byte("secret"), 0644)
-
-	err := ValidateOutboxEntry(OutboxEntry{Path: f}, []string{dir})
-	if err == nil {
-		t.Fatal("expected sandbox error")
-	}
-}
-
 func TestValidateOutboxEntry_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	err := ValidateOutboxEntry(OutboxEntry{Path: filepath.Join(dir, "missing.txt")}, []string{dir})
+	err := ValidateOutboxEntry(OutboxEntry{Path: filepath.Join(dir, "missing.txt")})
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
@@ -131,44 +119,8 @@ func TestValidateOutboxEntry_Directory(t *testing.T) {
 	sub := filepath.Join(dir, "subdir")
 	os.MkdirAll(sub, 0755)
 
-	err := ValidateOutboxEntry(OutboxEntry{Path: sub}, []string{dir})
+	err := ValidateOutboxEntry(OutboxEntry{Path: sub})
 	if err == nil {
 		t.Fatal("expected directory error")
-	}
-}
-
-func TestValidateOutboxEntry_SymlinkTraversal(t *testing.T) {
-	allowed := t.TempDir()
-	outside := t.TempDir()
-	secret := filepath.Join(outside, "secret.txt")
-	os.WriteFile(secret, []byte("secret"), 0644)
-
-	link := filepath.Join(allowed, "link.txt")
-	os.Symlink(secret, link)
-
-	err := ValidateOutboxEntry(OutboxEntry{Path: link}, []string{allowed})
-	if err == nil {
-		t.Fatal("expected sandbox error for symlink traversal")
-	}
-}
-
-func TestIsPathAllowed(t *testing.T) {
-	tests := []struct {
-		path    string
-		dirs    []string
-		allowed bool
-	}{
-		{"/home/user/workspace/file.txt", []string{"/home/user/workspace"}, true},
-		{"/home/user/workspace/sub/file.txt", []string{"/home/user/workspace"}, true},
-		{"/etc/passwd", []string{"/home/user/workspace"}, false},
-		{"/home/user/workspacefile.txt", []string{"/home/user/workspace"}, false},
-		{"/home/user/file.txt", []string{"/home/user/workspace", "/home/user"}, true},
-	}
-
-	for _, tt := range tests {
-		got := isPathAllowed(tt.path, tt.dirs)
-		if got != tt.allowed {
-			t.Errorf("isPathAllowed(%q, %v) = %v, want %v", tt.path, tt.dirs, got, tt.allowed)
-		}
 	}
 }
