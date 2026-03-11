@@ -2,6 +2,7 @@ package models
 
 type AgentInput struct {
 	ChatID          int64
+	ThreadID        int64
 	MessageID       int64 // telegram message ID of the user's message
 	Prompt          string
 	FilePath        string // local path to downloaded attachment, if any

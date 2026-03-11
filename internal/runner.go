@@ -72,18 +72,21 @@ func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput, onToolUs
 		"--dangerously-skip-permissions",
 	}
 
-	sessionID := r.sessions.Get(input.ChatID)
+	sessionID := r.sessions.Get(input.ChatID, input.ThreadID)
 	if sessionID != "" {
-		log.Printf("[agent] chat=%d resuming session=%s", input.ChatID, sessionID)
+		log.Printf("[agent] chat=%d thread=%d resuming session=%s", input.ChatID, input.ThreadID, sessionID)
 		args = append(args, "--resume", sessionID)
 	} else {
-		log.Printf("[agent] chat=%d starting new session", input.ChatID)
+		log.Printf("[agent] chat=%d thread=%d starting new session", input.ChatID, input.ThreadID)
 	}
 
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Dir = r.config.AgentDir
 	cmd.Stdin = strings.NewReader(prompt)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("MINICLAW_CHAT_ID=%d", input.ChatID))
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("MINICLAW_CHAT_ID=%d", input.ChatID),
+		fmt.Sprintf("MINICLAW_THREAD_ID=%d", input.ThreadID),
+	)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -142,15 +145,15 @@ func (r *AgentRunner) Run(ctx context.Context, input models.AgentInput, onToolUs
 	}
 
 	if err := cmd.Wait(); err != nil {
-		log.Printf("[agent] chat=%d CLI error: %v stderr=%q", input.ChatID, err, stderr.String())
+		log.Printf("[agent] chat=%d thread=%d CLI error: %v stderr=%q", input.ChatID, input.ThreadID, err, stderr.String())
 		return models.AgentOutput{Status: "error", Error: stderr.String()}, err
 	}
 
 	if resultSessionID != "" {
-		r.sessions.Set(input.ChatID, resultSessionID)
+		r.sessions.SetIfAbsent(input.ChatID, input.ThreadID, resultSessionID)
 	}
 
-	log.Printf("[agent] chat=%d completed session=%s result_len=%d", input.ChatID, resultSessionID, len(result))
+	log.Printf("[agent] chat=%d thread=%d completed session=%s result_len=%d", input.ChatID, input.ThreadID, resultSessionID, len(result))
 	return models.AgentOutput{
 		Result: result,
 		Status: "success",

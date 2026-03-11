@@ -11,7 +11,13 @@ import (
 	"miniclaw/internal/models"
 )
 
-// chatState holds a per-chat mutex to serialise agent runs,
+// chatThreadKey identifies a unique chat+thread combination for per-thread concurrency.
+type chatThreadKey struct {
+	chatID   int64
+	threadID int64
+}
+
+// chatState holds a per-chat/thread mutex to serialise agent runs,
 // plus the cancel func of the currently running agent (if any).
 type chatState struct {
 	mu     sync.Mutex
@@ -30,11 +36,7 @@ type App struct {
 func NewApp(cfg Config) *App {
 	a := &App{config: cfg}
 
-	sessions, err := NewSessionStore(cfg.DataDir + "/sessions.json")
-	if err != nil {
-		log.Fatalf("failed to load session store: %v", err)
-	}
-
+	sessions := NewSessionStore(cfg.DataDir + "/sessions.json")
 	a.agentRunner = NewAgentRunner(cfg, sessions)
 
 	settings := LoadSettings(cfg.DataDir)
@@ -70,8 +72,9 @@ func (a *App) Start(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) getChatState(chatID int64) *chatState {
-	val, _ := a.chats.LoadOrStore(chatID, &chatState{})
+func (a *App) getChatState(chatID, threadID int64) *chatState {
+	key := chatThreadKey{chatID: chatID, threadID: threadID}
+	val, _ := a.chats.LoadOrStore(key, &chatState{})
 	return val.(*chatState)
 }
 
@@ -83,6 +86,7 @@ func (a *App) onMessage(msg models.Message) {
 
 	input := models.AgentInput{
 		ChatID:          msg.ChatID,
+		ThreadID:        msg.ThreadID,
 		MessageID:       msg.MessageID,
 		Prompt:          msg.Content,
 		FilePath:        msg.FilePath,
@@ -96,16 +100,16 @@ func (a *App) onMessage(msg models.Message) {
 
 // runQueuedTask is the RunFunc used by the scheduler. Acquires the mutex and runs the agent.
 func (a *App) runQueuedTask(ctx context.Context, input models.AgentInput) (models.AgentOutput, error) {
-	cs := a.getChatState(input.ChatID)
+	cs := a.getChatState(input.ChatID, input.ThreadID)
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
 	return a.agentRunner.Run(ctx, input, nil)
 }
 
-// runQueued acquires the per-chat mutex, blocking until any prior agent finishes.
+// runQueued acquires the per-chat/thread mutex, blocking until any prior agent finishes.
 func (a *App) runQueued(input models.AgentInput) {
-	cs := a.getChatState(input.ChatID)
+	cs := a.getChatState(input.ChatID, input.ThreadID)
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
@@ -120,7 +124,7 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 	defer cancel()
 
 	go func() {
-		a.bot.SendTyping(input.ChatID)
+		a.bot.SendTyping(input.ChatID, input.ThreadID)
 		ticker := time.NewTicker(4 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -128,7 +132,7 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				a.bot.SendTyping(input.ChatID)
+				a.bot.SendTyping(input.ChatID, input.ThreadID)
 			}
 		}
 	}()
@@ -149,7 +153,7 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 
 		if first {
 			lastStatusText = tracker.Render()
-			statusMsgID = a.bot.SendStatusMessage(input.ChatID, lastStatusText)
+			statusMsgID = a.bot.SendStatusMessage(input.ChatID, input.ThreadID, lastStatusText)
 			return
 		}
 
@@ -188,18 +192,18 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 
 	if err != nil {
 		if ctx.Err() == context.Canceled {
-			log.Printf("agent cancelled for chat %d", input.ChatID)
+			log.Printf("agent cancelled for chat %d thread %d", input.ChatID, input.ThreadID)
 			if statusMsgID != 0 {
 				a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderDone()+"❌ Cancelled")
 			}
-			a.bot.SendReply(input.ChatID, input.MessageID, "Cancelled.")
+			a.bot.SendReply(input.ChatID, input.ThreadID, input.MessageID, "Cancelled.")
 			return
 		}
-		log.Printf("agent error for chat %d: %v", input.ChatID, err)
+		log.Printf("agent error for chat %d thread %d: %v", input.ChatID, input.ThreadID, err)
 		if statusMsgID != 0 {
 			a.bot.EditMessage(input.ChatID, statusMsgID, tracker.RenderDone()+"❌ Error")
 		}
-		a.bot.SendMessage(input.ChatID, "Sorry, I encountered an error. Check logs for details.")
+		a.bot.SendMessage(input.ChatID, input.ThreadID, "Sorry, I encountered an error. Check logs for details.")
 		return
 	}
 
@@ -208,11 +212,11 @@ func (a *App) startAgent(ctx context.Context, cancel context.CancelFunc, input m
 	}
 
 	if output.Result != "" {
-		a.sendAgentOutput(input.ChatID, output.Result)
+		a.sendAgentOutput(input.ChatID, input.ThreadID, output.Result)
 	}
 }
 
-func (a *App) sendAgentOutput(chatID int64, result string) {
+func (a *App) sendAgentOutput(chatID, threadID int64, result string) {
 	outboxPath := filepath.Join(a.config.HomeDir, "outbox.json")
 	entries, err := ReadOutbox(outboxPath)
 	if err != nil {
@@ -225,14 +229,14 @@ func (a *App) sendAgentOutput(chatID int64, result string) {
 				log.Printf("[outbox] chat=%d skipping %s: %v", chatID, entry.Path, err)
 				continue
 			}
-			if err := a.bot.SendFile(chatID, entry.Path, entry.Caption); err != nil {
+			if err := a.bot.SendFile(chatID, threadID, entry.Path, entry.Caption); err != nil {
 				log.Printf("[outbox] chat=%d failed to send %s: %v", chatID, entry.Path, err)
 			}
 		}
 		RemoveOutbox(outboxPath)
 	}
 
-	if err := a.bot.SendMessage(chatID, result); err != nil {
+	if err := a.bot.SendMessage(chatID, threadID, result); err != nil {
 		log.Printf("error sending message to chat %d: %v", chatID, err)
 	}
 }
@@ -244,12 +248,13 @@ func (a *App) restartAgent(chatID int64) {
 	}
 
 	// Cancel any running agent so the restart doesn't queue behind it.
-	cs := a.getChatState(chatID)
+	// Restart is global: cancel the non-threaded (threadID=0) agent.
+	cs := a.getChatState(chatID, 0)
 	if fn := cs.cancel.Load(); fn != nil {
 		(*fn)()
 	}
 
-	a.bot.SendMessage(chatID, "Restarting miniclaw...")
+	a.bot.SendMessage(chatID, 0, "Restarting miniclaw...")
 
 	input := models.AgentInput{
 		ChatID: chatID,
@@ -259,11 +264,11 @@ func (a *App) restartAgent(chatID int64) {
 	go a.runQueued(input)
 }
 
-func (a *App) cancelAgent(chatID int64) {
-	cs := a.getChatState(chatID)
+func (a *App) cancelAgent(chatID, threadID int64) {
+	cs := a.getChatState(chatID, threadID)
 	fn := cs.cancel.Load()
 	if fn == nil {
-		a.bot.SendMessage(chatID, "Nothing to cancel.")
+		a.bot.SendMessage(chatID, threadID, "Nothing to cancel.")
 		return
 	}
 	(*fn)()
@@ -279,9 +284,9 @@ func (a *App) toggleLogs(chatID int64) {
 	s.ShowStatus = enabled
 	SaveSettings(a.config.DataDir, s)
 	if enabled {
-		a.bot.SendMessage(chatID, "✅ Status updates enabled.")
+		a.bot.SendMessage(chatID, 0, "✅ Status updates enabled.")
 	} else {
-		a.bot.SendMessage(chatID, "🔕 Status updates disabled.")
+		a.bot.SendMessage(chatID, 0, "🔕 Status updates disabled.")
 	}
 }
 

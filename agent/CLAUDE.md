@@ -59,6 +59,7 @@ To create a task, write a JSON file to ~/.miniclaw/data/tasks/ with a descriptiv
 {
     "prompt": "Check emails and summarise",
     "chat_id": -1001234567890,
+    "thread_id": 42,
     "type": "cron",
     "value": "0 9 * * *",
     "status": "active",
@@ -69,6 +70,7 @@ To create a task, write a JSON file to ~/.miniclaw/data/tasks/ with a descriptiv
 Fields:
 - prompt: what to do when the task runs
 - chat_id: which chat to send the result to (use the $MINICLAW_CHAT_ID environment variable)
+- thread_id: which thread to send the result to (use the $MINICLAW_THREAD_ID environment variable; omit if 0)
 - type: "once" (run once at next_run), "cron" (cron expression), "interval" (e.g. "24h")
 - value: the schedule expression (cron string, duration, or empty for "once")
 - status: "active" or "paused"

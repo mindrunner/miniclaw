@@ -9,49 +9,70 @@ import (
 	"sync"
 )
 
+// SessionStore maps chatID (or chatID:threadID) to Claude CLI session UUIDs.
+// All reads and writes go directly to disk; the mutex serialises Go-side access only.
 type SessionStore struct {
-	path     string
-	sessions map[string]string // chatID (as string) → session ID
-	mu       sync.RWMutex
+	path string
+	mu   sync.Mutex
 }
 
-func NewSessionStore(path string) (*SessionStore, error) {
-	s := &SessionStore{
-		path:     path,
-		sessions: make(map[string]string),
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return s, nil
-		}
-		return nil, fmt.Errorf("reading sessions file: %w", err)
-	}
-
-	if err := json.Unmarshal(data, &s.sessions); err != nil {
-		return nil, fmt.Errorf("parsing sessions file: %w", err)
-	}
-
-	return s, nil
+func NewSessionStore(path string) *SessionStore {
+	return &SessionStore{path: path}
 }
 
-func (s *SessionStore) Get(chatID int64) string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.sessions[fmt.Sprintf("%d", chatID)]
+// sessionKey returns the map key for a given chat/thread pair.
+// threadID == 0 uses plain "chatID" for backward compatibility with existing sessions.
+// threadID > 0 uses "chatID:threadID".
+func sessionKey(chatID, threadID int64) string {
+	if threadID == 0 {
+		return fmt.Sprintf("%d", chatID)
+	}
+	return fmt.Sprintf("%d:%d", chatID, threadID)
 }
 
-func (s *SessionStore) Set(chatID int64, sessionID string) {
+func (s *SessionStore) Get(chatID, threadID int64) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.sessions[fmt.Sprintf("%d", chatID)] = sessionID
-	s.save()
+	sessions := s.load()
+	return sessions[sessionKey(chatID, threadID)]
 }
 
-func (s *SessionStore) save() {
-	data, err := json.MarshalIndent(s.sessions, "", "  ")
+// SetIfAbsent writes the session ID only if no session exists for this key yet.
+// This respects sessions written by the agent (e.g. /migrate) or by the user
+// editing sessions.json directly.
+func (s *SessionStore) SetIfAbsent(chatID, threadID int64, sessionID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sessions := s.load()
+	key := sessionKey(chatID, threadID)
+	if sessions[key] != "" {
+		return
+	}
+	sessions[key] = sessionID
+	s.save(sessions)
+}
+
+func (s *SessionStore) load() map[string]string {
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("error reading sessions file: %v", err)
+		}
+		return make(map[string]string)
+	}
+
+	sessions := make(map[string]string)
+	if err := json.Unmarshal(data, &sessions); err != nil {
+		log.Printf("error parsing sessions file: %v", err)
+		return make(map[string]string)
+	}
+	return sessions
+}
+
+func (s *SessionStore) save(sessions map[string]string) {
+	data, err := json.MarshalIndent(sessions, "", "  ")
 	if err != nil {
 		log.Printf("error marshaling sessions: %v", err)
 		return

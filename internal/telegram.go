@@ -24,7 +24,7 @@ type TelegramBot struct {
 	updater   *ext.Updater
 	fileDir   string
 	onMessage func(msg models.Message)
-	onCancel  func(chatID int64)
+	onCancel  func(chatID, threadID int64)
 	onRestart func(chatID int64)
 	onLogs    func(chatID int64)
 }
@@ -79,9 +79,9 @@ func (tb *TelegramBot) handleChatID(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (tb *TelegramBot) handleCancel(_ *gotgbot.Bot, ctx *ext.Context) error {
-	log.Printf("[recv] chat=%d command=/cancel", ctx.EffectiveChat.Id)
+	log.Printf("[recv] chat=%d thread=%d command=/cancel", ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	if tb.onCancel != nil {
-		tb.onCancel(ctx.EffectiveChat.Id)
+		tb.onCancel(ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	}
 	return nil
 }
@@ -115,6 +115,7 @@ func (tb *TelegramBot) handleMessage(_ *gotgbot.Bot, ctx *ext.Context) error {
 func (tb *TelegramBot) parseMessage(msg *gotgbot.Message) models.Message {
 	m := models.Message{
 		ChatID:    msg.Chat.Id,
+		ThreadID:  msg.MessageThreadId,
 		MessageID: msg.MessageId,
 		Sender:    senderName(msg.From),
 		Content:   msg.GetText(),
@@ -225,15 +226,21 @@ func (tb *TelegramBot) downloadFile(fileID, fileName, dstDir string) (string, er
 	return dstPath, nil
 }
 
-func (tb *TelegramBot) SendTyping(chatID int64) {
-	tb.bot.SendChatAction(chatID, "typing", nil)
+func (tb *TelegramBot) SendTyping(chatID, threadID int64) {
+	opts := &gotgbot.SendChatActionOpts{}
+	if threadID > 0 {
+		opts.MessageThreadId = threadID
+	}
+	tb.bot.SendChatAction(chatID, "typing", opts)
 }
 
 // Returns 0 on error (best-effort).
-func (tb *TelegramBot) SendStatusMessage(chatID int64, text string) int64 {
-	msg, err := tb.bot.SendMessage(chatID, text, &gotgbot.SendMessageOpts{
-		ParseMode: "HTML",
-	})
+func (tb *TelegramBot) SendStatusMessage(chatID, threadID int64, text string) int64 {
+	opts := &gotgbot.SendMessageOpts{ParseMode: "HTML"}
+	if threadID > 0 {
+		opts.MessageThreadId = threadID
+	}
+	msg, err := tb.bot.SendMessage(chatID, text, opts)
 	if err != nil {
 		log.Printf("[send] chat=%d failed to send status message: %v", chatID, err)
 		return 0
@@ -253,17 +260,21 @@ func (tb *TelegramBot) EditMessage(chatID, messageID int64, text string) {
 	}
 }
 
-func (tb *TelegramBot) SendReply(chatID int64, replyToMessageID int64, text string) error {
+func (tb *TelegramBot) SendReply(chatID, threadID, replyToMessageID int64, text string) error {
 	if text == "" {
 		return nil
 	}
-	_, err := tb.bot.SendMessage(chatID, text, &gotgbot.SendMessageOpts{
+	opts := &gotgbot.SendMessageOpts{
 		ReplyParameters: &gotgbot.ReplyParameters{MessageId: replyToMessageID},
-	})
+	}
+	if threadID > 0 {
+		opts.MessageThreadId = threadID
+	}
+	_, err := tb.bot.SendMessage(chatID, text, opts)
 	return err
 }
 
-func (tb *TelegramBot) SendFile(chatID int64, filePath string, caption string) error {
+func (tb *TelegramBot) SendFile(chatID, threadID int64, filePath string, caption string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("opening file %s: %w", filePath, err)
@@ -276,6 +287,9 @@ func (tb *TelegramBot) SendFile(chatID int64, filePath string, caption string) e
 		opts.Caption = caption
 		opts.ParseMode = "HTML"
 	}
+	if threadID > 0 {
+		opts.MessageThreadId = threadID
+	}
 
 	_, err = tb.bot.SendDocument(chatID, gotgbot.InputFileByReader(fileName, f), opts)
 	if err != nil {
@@ -285,21 +299,27 @@ func (tb *TelegramBot) SendFile(chatID int64, filePath string, caption string) e
 	return nil
 }
 
-func (tb *TelegramBot) SendMessage(chatID int64, text string) error {
+func (tb *TelegramBot) SendMessage(chatID, threadID int64, text string) error {
 	if text == "" {
 		return nil
 	}
 
 	chunks := splitMessage(text)
-	log.Printf("[send] chat=%d chunks=%d len=%d", chatID, len(chunks), len(text))
+	log.Printf("[send] chat=%d thread=%d chunks=%d len=%d", chatID, threadID, len(chunks), len(text))
 	for _, chunk := range chunks {
-		_, err := tb.bot.SendMessage(chatID, chunk, &gotgbot.SendMessageOpts{
-			ParseMode: "HTML",
-		})
+		opts := &gotgbot.SendMessageOpts{ParseMode: "HTML"}
+		if threadID > 0 {
+			opts.MessageThreadId = threadID
+		}
+		_, err := tb.bot.SendMessage(chatID, chunk, opts)
 		if err != nil {
 			// Retry without parse mode in case of HTML formatting errors
 			log.Printf("[send] chat=%d HTML parse failed, retrying plain", chatID)
-			_, err = tb.bot.SendMessage(chatID, chunk, nil)
+			retryOpts := &gotgbot.SendMessageOpts{}
+			if threadID > 0 {
+				retryOpts.MessageThreadId = threadID
+			}
+			_, err = tb.bot.SendMessage(chatID, chunk, retryOpts)
 			if err != nil {
 				return fmt.Errorf("sending message: %w", err)
 			}
