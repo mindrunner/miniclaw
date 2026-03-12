@@ -1,23 +1,19 @@
 # miniclaw
 
-A minimal and easily hackable [OpenClaw](https://github.com/openclaw/openclaw) alternative.
+A minimal Telegram agent powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code), designed to be self-modifiable.
 
-## Philosophy
+## Why miniclaw?
 
-miniclaw is deliberately small, not just for simplicity, but because a small codebase means the agent can understand and modify its own source code at runtime.
+1. **Official Engine**: Powered directly by [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Get Anthropic's state-of-the-art tool-use, codebase awareness, and memory management out of the box, with zero maintenance and automatic updates.
+2. **Telegram First**: The best UI for a personal agent. Enjoy native support for threads, file sharing, voice messages, and real-time work status.
+3. **Self-Modifying**: The codebase is small enough for Claude to understand in one go. Want a new feature? Simply ask the agent to implement it for you.
 
-The entire project is a handful of Go files with only three dependencies (a Telegram library, a cron parser, and a dotenv loader). Claude can read, edit, and rebuild miniclaw on the fly, adding features, fixing bugs, or adapting its own behaviour to whatever you need, all through a conversation on Telegram. No plugin system required when your agent *is* the plugin system.
+## Features
 
-Fork it, read it in one sitting, and make it yours.
-
-## What it does
-
-- Persistent sessions per chat or per thread, with reply context
-- Threaded mode: each Telegram topic gets its own isolated Claude session, backward-compatible with non-threaded DMs
-- Scheduled tasks (cron, interval, one-shot) as JSON files, thread-aware
-- File, image, and voice message support
-- Built-in and extensible skills via slash commands
-- Real-time status updates while the agent works
+- **Persistent Memory**: Context-aware sessions per Telegram chat or thread.
+- **AI-Managed Tasks**: Schedule cron jobs or one-shot reminders simply by telling the agent what you need.
+- **Rich Media**: Full support for images, documents, and voice messages.
+- **Extensible Skills**: Use built-in skills as Telegram slash commands, or ask your agent to build new ones.
 
 ## Prerequisites
 
@@ -28,28 +24,36 @@ Fork it, read it in one sitting, and make it yours.
 
 ## Setup
 
+**AI-Native Installation**: use the `/setup` command within Claude CLI to walk you through prerequisites, configuration, and optionally set up a persistent background service (`systemd`/`launchd`).
+
 ```sh
+# 1) First clone miniclaw to your desired location
 git clone https://github.com/AaronCQL/miniclaw.git
+
+# 2) Then, change into the miniclaw directory
 cd miniclaw
+
+# 3) Launch Claude
 claude
-# then type: /setup
+
+# 4) Finally, type: /setup
 ```
 
-The `/setup` command walks you through prerequisites, configuration, and optionally sets up a background service (systemd on Linux, launchd on macOS).
+Once your bot is running, use `/commands` on Telegram to sync the agent's skills with Telegram and to see all available commands.
 
 ## Customisation
 
 - **`agent/preferences.md`**: your bot's name, personality, timezone, and any preferences you tell it to remember
 - **`agent/CLAUDE.md`**: the system prompt that defines agent behaviour, sandbox rules, and message formatting
 
-Edit these files to make the bot your own.
+Ask your agent to edit these files to make it your own.
 
 ## Project structure
 
 The repo has two main concerns: the Go application that wraps Claude CLI, and the agent context that shapes how Claude behaves.
 
 - **`agent/`**: the agent's working directory, containing its system prompt (`CLAUDE.md`) and personality (`preferences.md`). This is where Claude runs from.
-- **`.claude/skills/`**: slash command definitions (e.g. `/diff`, `/setup`, `/restart`). Each skill is a markdown file that Claude follows as instructions.
+- **`.claude/skills/`**: slash command definitions (e.g. `/diff`, `/setup`, `/restart`). Each skill is a directory containing a `SKILL.md` file that the agent follows as expert instructions.
 - **`cmd/`** and **`internal/`**: the Go application. Telegram polling, session management, task scheduling, and the Claude CLI runner.
 
 At runtime, all state lives in `~/.miniclaw/`: the `.env` config, session data, scheduled tasks, and a scratch workspace for file operations.
