@@ -43,10 +43,12 @@ git log <last-tag>..HEAD --oneline
 Apply conventional commit rules to determine the bump:
 
 **Pre-v1 (v0.x.y):**
+
 - `feat:` or breaking changes -> bump minor (v0.1.0 -> v0.2.0)
 - `fix:`, `chore:`, `docs:`, `style:`, `refactor:` -> bump patch (v0.1.0 -> v0.1.1)
 
 **Post-v1 (v1.0.0+):**
+
 - Breaking changes (`BREAKING CHANGE:` or `!:` suffix) -> bump major
 - `feat:` -> bump minor
 - Everything else -> bump patch
@@ -58,16 +60,19 @@ State the proposed version and why.
 Group commits by type and write a changelog entry:
 
 ```markdown
-## [vX.Y.Z] - YYYY-MM-DD
+## vX.Y.Z (YYYY-MM-DD)
 
 ### Features
-- description (from feat: commits)
+
+- descriptions (from feat: commits)
 
 ### Bug Fixes
-- description (from fix: commits)
+
+- descriptions (from fix: commits)
 
 ### Improvements
-- description (from refactor:, chore:, docs:, style: commits)
+
+- descriptions (from refactor:, chore:, docs:, style: commits)
 ```
 
 Only include sections that have entries. Strip the conventional commit prefix (feat:, fix:, etc.) from each description.
@@ -87,6 +92,7 @@ Prepend the new entry after the header (newest first). Keep all previous entries
 ## Step 6: Confirm with user
 
 Show the user:
+
 - The proposed version
 - The full changelog entry
 
