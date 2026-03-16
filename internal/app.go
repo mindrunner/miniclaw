@@ -241,7 +241,7 @@ func (a *App) sendAgentOutput(chatID, threadID int64, result string) {
 	}
 }
 
-func (a *App) restartAgent(chatID int64) {
+func (a *App) restartAgent(chatID, threadID int64) {
 	if !a.isAllowed(chatID) {
 		log.Printf("restart from unauthorised chat %d, ignoring", chatID)
 		return
@@ -254,11 +254,12 @@ func (a *App) restartAgent(chatID int64) {
 		(*fn)()
 	}
 
-	a.bot.SendMessage(chatID, 0, "Restarting miniclaw...")
+	a.bot.SendMessage(chatID, threadID, "Restarting miniclaw...")
 
 	input := models.AgentInput{
-		ChatID: chatID,
-		Prompt: "/restart",
+		ChatID:   chatID,
+		ThreadID: threadID,
+		Prompt:   "/restart",
 	}
 
 	go a.runQueued(input)
@@ -274,7 +275,7 @@ func (a *App) cancelAgent(chatID, threadID int64) {
 	(*fn)()
 }
 
-func (a *App) toggleLogs(chatID int64) {
+func (a *App) toggleLogs(chatID, threadID int64) {
 	if !a.isAllowed(chatID) {
 		return
 	}
@@ -284,9 +285,9 @@ func (a *App) toggleLogs(chatID int64) {
 	s.ShowStatus = enabled
 	SaveSettings(a.config.DataDir, s)
 	if enabled {
-		a.bot.SendMessage(chatID, 0, "✅ Status updates enabled.")
+		a.bot.SendMessage(chatID, threadID, "✅ Status updates enabled.")
 	} else {
-		a.bot.SendMessage(chatID, 0, "🔕 Status updates disabled.")
+		a.bot.SendMessage(chatID, threadID, "🔕 Status updates disabled.")
 	}
 }
 

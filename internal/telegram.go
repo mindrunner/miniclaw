@@ -25,8 +25,8 @@ type TelegramBot struct {
 	fileDir   string
 	onMessage func(msg models.Message)
 	onCancel  func(chatID, threadID int64)
-	onRestart func(chatID int64)
-	onLogs    func(chatID int64)
+	onRestart func(chatID, threadID int64)
+	onLogs    func(chatID, threadID int64)
 }
 
 func NewTelegramBot(token string, fileDir string, onMessage func(msg models.Message)) (*TelegramBot, error) {
@@ -71,10 +71,18 @@ func (tb *TelegramBot) Stop() {
 }
 
 func (tb *TelegramBot) handleChatID(b *gotgbot.Bot, ctx *ext.Context) error {
-	log.Printf("[recv] chat=%d command=/chatid", ctx.EffectiveChat.Id)
-	_, err := ctx.EffectiveMessage.Reply(b, fmt.Sprintf("Chat ID: <code>%d</code>", ctx.EffectiveChat.Id), &gotgbot.SendMessageOpts{
-		ParseMode: "HTML",
-	})
+	chatID := ctx.EffectiveChat.Id
+	threadID := ctx.EffectiveMessage.MessageThreadId
+	log.Printf("[recv] chat=%d thread=%d command=/chatid", chatID, threadID)
+	text := fmt.Sprintf("Chat ID: <code>%d</code>", chatID)
+	if threadID > 0 {
+		text += fmt.Sprintf("\nThread ID: <code>%d</code>", threadID)
+	}
+	opts := &gotgbot.SendMessageOpts{ParseMode: "HTML"}
+	if threadID > 0 {
+		opts.MessageThreadId = threadID
+	}
+	_, err := ctx.EffectiveMessage.Reply(b, text, opts)
 	return err
 }
 
@@ -87,17 +95,17 @@ func (tb *TelegramBot) handleCancel(_ *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (tb *TelegramBot) handleRestart(_ *gotgbot.Bot, ctx *ext.Context) error {
-	log.Printf("[recv] chat=%d command=/restart", ctx.EffectiveChat.Id)
+	log.Printf("[recv] chat=%d thread=%d command=/restart", ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	if tb.onRestart != nil {
-		tb.onRestart(ctx.EffectiveChat.Id)
+		tb.onRestart(ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	}
 	return nil
 }
 
 func (tb *TelegramBot) handleLogs(_ *gotgbot.Bot, ctx *ext.Context) error {
-	log.Printf("[recv] chat=%d command=/logs", ctx.EffectiveChat.Id)
+	log.Printf("[recv] chat=%d thread=%d command=/logs", ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	if tb.onLogs != nil {
-		tb.onLogs(ctx.EffectiveChat.Id)
+		tb.onLogs(ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	}
 	return nil
 }
