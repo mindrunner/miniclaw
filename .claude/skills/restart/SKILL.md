@@ -37,13 +37,19 @@ if [ "$(uname -s)" = "Darwin" ]; then
 else
   TIMESTAMP=$(date -u -d '+10 seconds' --iso-8601=seconds)
 fi
+THREAD_ID=${MINICLAW_THREAD_ID:-0}
 IFS=',' read -ra CHAT_IDS <<< "$ALLOWED_CHAT_IDS"
 for CHAT_ID in "${CHAT_IDS[@]}"; do
   CHAT_ID=$(echo "$CHAT_ID" | tr -d ' ')
+  THREAD_JSON=""
+  if [ "$THREAD_ID" -gt 0 ] 2>/dev/null; then
+    THREAD_JSON="\"thread_id\": ${THREAD_ID},"
+  fi
   cat > ~/.miniclaw/data/tasks/restart-confirmation-${CHAT_ID}.json << EOF
 {
     "prompt": "Send a short message confirming that miniclaw has been rebuilt and restarted successfully. Keep it to one or two lines.",
     "chat_id": ${CHAT_ID},
+    ${THREAD_JSON}
     "type": "once",
     "value": "",
     "status": "active",
