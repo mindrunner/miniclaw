@@ -26,7 +26,7 @@ Combine the discovered skills with these hardcoded commands that don't have SKIL
 - `chatid`: "Get your Telegram chat ID"
 - `cancel`: "Cancel the current request"
 - `compact`: "Compact conversation context to free up space"
-- `logs`: "Toggle status updates on or off"
+- `logs`: "Cycle status updates: off, text only, verbose"
 - `simplify`: "Review changed code for reuse, quality, and efficiency"
 
 Telegram command descriptions have a 256-character limit. Truncate any descriptions that exceed this.

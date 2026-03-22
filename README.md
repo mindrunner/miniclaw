@@ -91,7 +91,7 @@ Skills are slash commands the agent follows as expert instructions:
 | `/commands` | Register bot commands with Telegram | On demand |
 | `/restart` | Rebuild miniclaw and restart the background service | On demand |
 | `/review` | Review git diff, suggest commits | On demand |
-| `/logs` | Toggle status updates on or off | On demand |
+| `/logs` | Cycle status updates: off, text only, verbose | On demand |
 | `/transcribe` | Transcribe voice messages via Groq Whisper | Auto (on voice message) |
 
 ### AI-Managed Tasks
