@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.0 (2026-03-23)
+
+### Features
+
+- Add /clear command to reset session context (#9)
+- Add /usage command to show context and cost tracking (#8)
+
 ## v0.2.0 (2026-03-22)
 
 ### Features
