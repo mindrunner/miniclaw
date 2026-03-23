@@ -7,9 +7,18 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"miniclaw/internal/models"
 )
 
-// SessionStore maps chatID (or chatID:threadID) to Claude CLI session UUIDs.
+type SessionData struct {
+	SessionID     string  `json:"sessionID"`
+	ContextTokens int     `json:"contextTokens,omitempty"`
+	ContextWindow int     `json:"contextWindow,omitempty"`
+	CostUSD       float64 `json:"costUSD,omitempty"`
+	LastCostUSD   float64 `json:"lastCostUSD,omitempty"`
+}
+
 // All reads and writes go directly to disk; the mutex serialises Go-side access only.
 type SessionStore struct {
 	path string
@@ -35,7 +44,7 @@ func (s *SessionStore) Get(chatID, threadID int64) string {
 	defer s.mu.Unlock()
 
 	sessions := s.load()
-	return sessions[sessionKey(chatID, threadID)]
+	return sessions[sessionKey(chatID, threadID)].SessionID
 }
 
 // SetIfAbsent writes the session ID only if no session exists for this key yet.
@@ -47,31 +56,92 @@ func (s *SessionStore) SetIfAbsent(chatID, threadID int64, sessionID string) {
 
 	sessions := s.load()
 	key := sessionKey(chatID, threadID)
-	if sessions[key] != "" {
+	if sessions[key].SessionID != "" {
 		return
 	}
-	sessions[key] = sessionID
+	entry := sessions[key]
+	entry.SessionID = sessionID
+	sessions[key] = entry
 	s.save(sessions)
 }
 
-func (s *SessionStore) load() map[string]string {
+// costOnly skips the context snapshot - used for isolated sessions whose context is throwaway.
+func (s *SessionStore) UpdateUsage(chatID, threadID int64, modelUsage map[string]models.ModelUsage, costOnly bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sessions := s.load()
+	key := sessionKey(chatID, threadID)
+	entry := sessions[key]
+
+	var contextTokens, contextWindow int
+	var cost float64
+	for _, m := range modelUsage {
+		contextTokens += m.InputTokens + m.CacheCreationInputTokens + m.CacheReadInputTokens
+		cost += m.CostUSD
+		if m.ContextWindow > contextWindow {
+			contextWindow = m.ContextWindow
+		}
+	}
+
+	if !costOnly {
+		entry.ContextTokens = contextTokens
+		entry.ContextWindow = contextWindow
+	}
+	entry.LastCostUSD = cost
+	entry.CostUSD += cost
+
+	sessions[key] = entry
+	s.save(sessions)
+}
+
+func (s *SessionStore) GetUsage(chatID, threadID int64) SessionData {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sessions := s.load()
+	return sessions[sessionKey(chatID, threadID)]
+}
+
+func (s *SessionStore) TotalCost() float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var total float64
+	for _, entry := range s.load() {
+		total += entry.CostUSD
+	}
+	return total
+}
+
+// Supports legacy map[string]string format for backward compatibility.
+func (s *SessionStore) load() map[string]SessionData {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			log.Printf("error reading sessions file: %v", err)
 		}
-		return make(map[string]string)
+		return make(map[string]SessionData)
 	}
 
-	sessions := make(map[string]string)
-	if err := json.Unmarshal(data, &sessions); err != nil {
+	sessions := make(map[string]SessionData)
+	if err := json.Unmarshal(data, &sessions); err == nil {
+		return sessions
+	}
+
+	legacy := make(map[string]string)
+	if err := json.Unmarshal(data, &legacy); err != nil {
 		log.Printf("error parsing sessions file: %v", err)
-		return make(map[string]string)
+		return make(map[string]SessionData)
+	}
+
+	for k, v := range legacy {
+		sessions[k] = SessionData{SessionID: v}
 	}
 	return sessions
 }
 
-func (s *SessionStore) save(sessions map[string]string) {
+func (s *SessionStore) save(sessions map[string]SessionData) {
 	data, err := json.MarshalIndent(sessions, "", "  ")
 	if err != nil {
 		log.Printf("error marshaling sessions: %v", err)
