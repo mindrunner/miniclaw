@@ -15,9 +15,16 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 )
 
 const maxMessageLength = 4096
+
+const (
+	callbackClearYes = "clear_yes"
+	callbackClearNo  = "clear_no"
+	clearPromptText  = "⚠️ Are you sure you want to clear all context for this thread?"
+)
 
 type TelegramBot struct {
 	bot       *gotgbot.Bot
@@ -28,6 +35,7 @@ type TelegramBot struct {
 	onRestart func(chatID, threadID int64)
 	onLogs    func(chatID, threadID int64)
 	onUsage   func(chatID, threadID int64)
+	onClear   func(chatID, threadID int64)
 }
 
 func NewTelegramBot(token string, fileDir string, onMessage func(msg models.Message)) (*TelegramBot, error) {
@@ -54,6 +62,9 @@ func NewTelegramBot(token string, fileDir string, onMessage func(msg models.Mess
 	dispatcher.AddHandler(handlers.NewCommand("restart", tb.handleRestart))
 	dispatcher.AddHandler(handlers.NewCommand("logs", tb.handleLogs))
 	dispatcher.AddHandler(handlers.NewCommand("usage", tb.handleUsage))
+	dispatcher.AddHandler(handlers.NewCommand("clear", tb.handleClear))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Equal(callbackClearYes), tb.handleClearConfirm))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Equal(callbackClearNo), tb.handleClearCancel))
 
 	dispatcher.AddHandler(handlers.NewMessage(nil, tb.handleMessage))
 
@@ -118,6 +129,61 @@ func (tb *TelegramBot) handleUsage(_ *gotgbot.Bot, ctx *ext.Context) error {
 		tb.onUsage(ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
 	}
 	return nil
+}
+
+func (tb *TelegramBot) handleClear(b *gotgbot.Bot, ctx *ext.Context) error {
+	chatID := ctx.EffectiveChat.Id
+	threadID := ctx.EffectiveMessage.MessageThreadId
+	log.Printf("[recv] chat=%d thread=%d command=/clear", chatID, threadID)
+
+	opts := &gotgbot.SendMessageOpts{
+		ReplyMarkup: &gotgbot.InlineKeyboardMarkup{
+			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
+				{Text: "🚫 Cancel", CallbackData: callbackClearNo},
+				{Text: "👍 Yes", CallbackData: callbackClearYes},
+			}},
+		},
+	}
+	if threadID > 0 {
+		opts.MessageThreadId = threadID
+	}
+	_, err := b.SendMessage(chatID, clearPromptText, opts)
+	return err
+}
+
+func (tb *TelegramBot) handleClearConfirm(b *gotgbot.Bot, ctx *ext.Context) error {
+	log.Printf("[recv] chat=%d thread=%d callback=%s", ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId, callbackClearYes)
+
+	tb.answerCallback(b, ctx, "<i>Context cleared. Next message will start a fresh session.</i>")
+
+	if tb.onClear != nil {
+		tb.onClear(ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId)
+	}
+	return nil
+}
+
+func (tb *TelegramBot) handleClearCancel(b *gotgbot.Bot, ctx *ext.Context) error {
+	log.Printf("[recv] chat=%d thread=%d callback=%s", ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageThreadId, callbackClearNo)
+
+	tb.answerCallback(b, ctx, "<i>Cancelled.</i>")
+	return nil
+}
+
+// answerCallback answers a callback query and edits the original message
+// with a strikethrough prompt followed by the result text.
+func (tb *TelegramBot) answerCallback(b *gotgbot.Bot, ctx *ext.Context, resultText string) {
+	if _, err := ctx.CallbackQuery.Answer(b, nil); err != nil {
+		log.Printf("[send] chat=%d failed to answer callback: %v", ctx.EffectiveChat.Id, err)
+	}
+	text := fmt.Sprintf("<s>%s</s>\n\n%s", clearPromptText, resultText)
+	if _, _, err := b.EditMessageText(text, &gotgbot.EditMessageTextOpts{
+		ChatId:      ctx.EffectiveChat.Id,
+		MessageId:   ctx.EffectiveMessage.MessageId,
+		ParseMode:   "HTML",
+		ReplyMarkup: gotgbot.InlineKeyboardMarkup{},
+	}); err != nil {
+		log.Printf("[send] chat=%d msg=%d failed to edit callback message: %v", ctx.EffectiveChat.Id, ctx.EffectiveMessage.MessageId, err)
+	}
 }
 
 func (tb *TelegramBot) handleMessage(_ *gotgbot.Bot, ctx *ext.Context) error {
