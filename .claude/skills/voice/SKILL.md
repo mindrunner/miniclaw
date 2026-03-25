@@ -5,36 +5,40 @@ description: Analyse chat history to update voice and typing style guide (voice.
 
 # Voice Update
 
-Go through all conversation transcripts, extract user messages, and update the voice and typing style guide with new observations about how the user communicates.
+This skill delegates to a sub-agent to keep large transcript data out of the main context window.
 
 **Arguments:** optional time window (e.g. `1d`, `7d`, `30d`, `all`). Defaults to `7d`.
+
+## Instructions
+
+Launch a sub-agent using the Agent tool with the prompt below. Substitute `{{DAYS}}` with the parsed time window:
+- `all` -> `0`
+- `14d` -> `14`
+- `30d` -> `30`
+- no argument -> `7`
+
+When the agent completes, relay its response directly to the user without modification.
+
+### Sub-agent prompt
+
+```
+Go through all conversation transcripts, extract user messages, and update the voice and typing style guide.
 
 ## Step 1: Find transcripts
 
 List all JSONL transcript files:
 
-```bash
 find ~/.claude/projects/ -name "*.jsonl" -type f
-```
 
 ## Step 2: Extract user messages
 
-Parse the time window from the skill arguments. Examples: `/voice all`, `/voice 14d`, `/voice 30d`. Default is `7d` if no argument is given.
+For each transcript file, extract all user-typed messages within the time window. Run this script with DAYS={{DAYS}}:
 
-Before running the script below, substitute `<DAYS>` with the appropriate value:
-- `all` -> `0` (no cutoff)
-- `14d` -> `14`
-- `30d` -> `30`
-- no argument -> `7`
-
-For each transcript file, extract all user-typed messages within the time window:
-
-```bash
 python3 << 'PYEOF'
 import json, glob
 from datetime import datetime, timedelta, timezone
 
-DAYS = <DAYS>  # 0 means no cutoff (all time)
+DAYS = {{DAYS}}  # 0 means no cutoff (all time)
 cutoff = datetime.now(timezone.utc) - timedelta(days=DAYS) if DAYS > 0 else None
 label = "all time" if not cutoff else f"the last {DAYS}d"
 files = glob.glob("/home/htpc/.claude/projects/**/*.jsonl", recursive=True)
@@ -80,13 +84,12 @@ for i, m in enumerate(msgs):
     print(m[:800])
     print()
 PYEOF
-```
 
-This output will be large. Skim through all of it focusing on HOW the user types, not WHAT they're saying. Life updates and personal context are handled by the /remember skill.
+Skim through all of the output focusing on HOW the user types, not WHAT they're saying. Life updates and personal context are handled by the /remember skill.
 
 ## Step 3: Read current voice guide
 
-Read `~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/voice.md` to understand what's already captured.
+Read ~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/voice.md to understand what's already captured.
 
 ## Step 4: Analyse and update
 
@@ -102,8 +105,9 @@ Only document patterns that appear consistently across multiple messages. Do not
 
 ## Step 5: Apply changes
 
-Edit `~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/voice.md` with the updates. Keep it concise and well-organised. Do not duplicate existing entries.
+Edit ~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/voice.md with the updates. Keep it concise and well-organised. Do not duplicate existing entries.
 
 ## Step 6: Report
 
 Start your response with "/voice summary" so the user knows which skill produced this output. Then tell the user what was added or changed, and why.
+```

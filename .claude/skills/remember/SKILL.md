@@ -5,36 +5,40 @@ description: Summarise recent conversations across all threads into auto memory 
 
 # Remember
 
-Scan all recent conversation transcripts across all sessions/threads, extract key context, and update the shared auto memory so that future sessions start with cross-thread awareness.
+This skill delegates to a sub-agent to keep large transcript data out of the main context window.
 
 **Arguments:** optional time window (e.g. `1d`, `7d`, `30d`, `all`). Defaults to `1d`.
+
+## Instructions
+
+Launch a sub-agent using the Agent tool with the prompt below. Substitute `{{DAYS}}` with the parsed time window:
+- `all` -> `0`
+- `7d` -> `7`
+- `30d` -> `30`
+- no argument -> `1`
+
+When the agent completes, relay its response directly to the user without modification.
+
+### Sub-agent prompt
+
+```
+Scan all recent conversation transcripts, extract key context, and update auto memory.
 
 ## Step 1: Find transcripts
 
 List all JSONL transcript files:
 
-```bash
 find ~/.claude/projects/ -name "*.jsonl" -type f
-```
 
 ## Step 2: Extract conversation context
 
-Parse the time window from the skill arguments. Examples: `/remember all`, `/remember 7d`, `/remember 30d`. Default is `1d` if no argument is given.
+For each transcript file, extract both user and assistant messages within the time window. Run this script with DAYS={{DAYS}}:
 
-Before running the script below, substitute `<DAYS>` with the appropriate value:
-- `all` -> `0` (no cutoff)
-- `7d` -> `7`
-- `30d` -> `30`
-- no argument -> `1`
-
-For each transcript file, extract both user and assistant messages within the time window:
-
-```bash
 python3 << 'PYEOF'
 import json, glob, os
 from datetime import datetime, timedelta, timezone
 
-DAYS = <DAYS>  # 0 means no cutoff (all time)
+DAYS = {{DAYS}}  # 0 means no cutoff (all time)
 cutoff = datetime.now(timezone.utc) - timedelta(days=DAYS) if DAYS > 0 else None
 label = "all time" if not cutoff else f"the last {DAYS}d"
 files = glob.glob("/home/htpc/.claude/projects/**/*.jsonl", recursive=True)
@@ -91,19 +95,16 @@ for sid, turns in sessions.items():
         print(f"[{role}] {turn['text'][:300]}")
     print()
 PYEOF
-```
 
-This output will be large. Read through all of it to understand what was discussed, decided, and built across all threads.
+Read through all of the output to understand what was discussed, decided, and built across all threads.
 
 ## Step 3: Read current memory
 
 Read all files in the memory directory:
 
-```bash
 ls ~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/
-```
 
-Read `MEMORY.md` and any existing topic files to understand what's already captured.
+Read MEMORY.md and any existing topic files to understand what's already captured.
 
 ## Step 4: Analyse and categorise
 
@@ -136,7 +137,6 @@ Structure the memory as:
 
 **Topic files** (e.g. `gemini-integration.md`, `skill-design.md`): detailed context per topic. These are read on demand. Each topic file should have frontmatter:
 
-```markdown
 ---
 name: <topic name>
 description: <one-line description used to decide relevance>
@@ -144,9 +144,8 @@ type: <decisions|entities|cases|patterns|events|topics>
 ---
 
 <content>
-```
 
-A single topic file can contain multiple related entries. For example, `cases-cli.md` might hold several CLI-related problem/solution pairs rather than one file per case.
+A single topic file can contain multiple related entries. For example, cases-cli.md might hold several CLI-related problem/solution pairs rather than one file per case.
 
 Rules:
 - Remove entries that are stale or no longer relevant
@@ -156,7 +155,8 @@ Rules:
 
 ## Step 6: Report
 
-Start your response with "/remember summary" so the user knows which skill produced this output. Then tell the user:
+Start your response with "/remember summary" so the user knows which skill produced this output. Then report:
 - What was added or updated
 - What was removed as stale
 - Current MEMORY.md line count
+```
