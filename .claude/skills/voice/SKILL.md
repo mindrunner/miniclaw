@@ -35,13 +35,13 @@ find ~/.claude/projects/ -name "*.jsonl" -type f
 For each transcript file, extract all user-typed messages within the time window. Run this script with DAYS={{DAYS}}:
 
 python3 << 'PYEOF'
-import json, glob
+import json, glob, os
 from datetime import datetime, timedelta, timezone
 
 DAYS = {{DAYS}}  # 0 means no cutoff (all time)
 cutoff = datetime.now(timezone.utc) - timedelta(days=DAYS) if DAYS > 0 else None
 label = "all time" if not cutoff else f"the last {DAYS}d"
-files = glob.glob("/home/htpc/.claude/projects/**/*.jsonl", recursive=True)
+files = glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursive=True)
 msgs = []
 
 for fpath in files:
@@ -89,7 +89,7 @@ Skim through all of the output focusing on HOW the user types, not WHAT they're 
 
 ## Step 3: Read current voice guide
 
-Read ~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/voice.md to understand what's already captured.
+Read the voice.md file from the auto memory directory (the path is provided in your system prompt) to understand what's already captured.
 
 ## Step 4: Analyse and update
 
@@ -105,7 +105,7 @@ Only document patterns that appear consistently across multiple messages. Do not
 
 ## Step 5: Apply changes
 
-Edit ~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/voice.md with the updates. Keep it concise and well-organised. Do not duplicate existing entries.
+Edit the voice.md file in the auto memory directory with the updates. Keep it concise and well-organised. Do not duplicate existing entries.
 
 ## Step 6: Report
 

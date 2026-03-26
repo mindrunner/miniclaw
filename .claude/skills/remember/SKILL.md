@@ -41,7 +41,7 @@ from datetime import datetime, timedelta, timezone
 DAYS = {{DAYS}}  # 0 means no cutoff (all time)
 cutoff = datetime.now(timezone.utc) - timedelta(days=DAYS) if DAYS > 0 else None
 label = "all time" if not cutoff else f"the last {DAYS}d"
-files = glob.glob("/home/htpc/.claude/projects/**/*.jsonl", recursive=True)
+files = glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursive=True)
 sessions = {}
 
 for fpath in files:
@@ -100,11 +100,7 @@ Read through all of the output to understand what was discussed, decided, and bu
 
 ## Step 3: Read current memory
 
-Read all files in the memory directory:
-
-ls ~/.claude/projects/-home-htpc-Desktop-dev-miniclaw/memory/
-
-Read MEMORY.md and any existing topic files to understand what's already captured.
+List all files in the auto memory directory (the path is provided in your system prompt), then read MEMORY.md and any existing topic files to understand what's already captured.
 
 ## Step 4: Analyse and categorise
 
