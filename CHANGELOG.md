@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.0 (2026-03-26)
+
+### Features
+
+- Add typing indicators and status tracking to scheduled tasks (#10)
+
+### Bug Fixes
+
+- Remove hardcoded user-specific paths from skills for portability
+
+### Improvements
+
+- Delegate /remember and /voice skills to sub-agents
+
 ## v0.3.0 (2026-03-23)
 
 ### Features
