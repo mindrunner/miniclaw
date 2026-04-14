@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.0 (2026-04-14)
+
+### Features
+
+- Add configurable effort level with `/effort` command (#15)
+- Format MCP tool names in status updates (#14)
+- Add per-thread system prompts (#16)
+
+### Improvements
+
+- Add system prompts section
+
 ## v0.6.0 (2026-04-09)
 
 ### Features
