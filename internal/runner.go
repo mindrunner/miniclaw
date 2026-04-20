@@ -266,6 +266,11 @@ func titleCase(s string) string {
 }
 
 func (r *AgentRunner) buildPrompt(input models.AgentInput) string {
+	// Skills (slash commands) are sent as-is without metadata
+	if strings.HasPrefix(input.Prompt, "/") {
+		return input.Prompt
+	}
+
 	var parts []string
 
 	now := time.Now()
